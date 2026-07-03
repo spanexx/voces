@@ -1,0 +1,126 @@
+# Pre-commit configuration for Whisper Voice Utility
+# See: https://pre-commit.com for more information
+
+repos:
+  # Git hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Prevent giant files from being committed
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+
+      # Check for files that would conflict in case insensitive filesystems
+      - id: check-case-conflict
+
+      # Check for files with names that would conflict on Windows
+      - id: check-illegal-windows-names
+
+      # Check for merge conflicts
+      - id: check-merge-conflict
+
+      # Check for debugger imports and python pdb statements
+      - id: debug-statements
+
+      # Don't commit to branch
+      - id: no-commit-to-branch
+        args: ["--branch", "main"]
+
+      # Check for private keys
+      - id: detect-private-key
+
+      # Check for credentials
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+
+  # Custom local hooks
+  - repo: local
+    hooks:
+      # Check that protected directories are not committed
+      - id: check-protected-dirs
+        name: Check Protected Directories
+        entry: scripts/check-protected-dirs.sh
+        language: script
+        files: \.(go|md|yaml|yml|json)$
+        pass_filenames: false
+
+      # Check for mocked test implementations
+      - id: check-no-test-mocks
+        name: Check No Mocked Test Implementations
+        entry: scripts/check-no-test-mocks.sh
+        language: script
+        files: _test\.go$
+        pass_filenames: false
+
+      # Check for mock implementations in code
+      - id: check-no-mocks
+        name: Check No Mock Implementations
+        entry: scripts/check-no-mocks.sh
+        language: script
+        files: \.go$
+        exclude: _test\.go$
+        pass_filenames: false
+
+      # Check file sizes
+      - id: check-file-size
+        name: Check File Size (< 250 lines)
+        entry: scripts/check-file-size.sh
+        language: script
+        files: \.go$
+        pass_filenames: false
+
+      # Check for proper comments
+      - id: check-comments
+        name: Check Go Comments
+        entry: scripts/check-comments.sh
+        language: script
+        files: \.go$
+        pass_filenames: false
+
+      # Check test coverage
+      - id: check-coverage
+        name: Check Test Coverage (85%+)
+        entry: scripts/check-coverage.sh
+        language: script
+        files: \.go$
+        pass_filenames: false
+
+      # Check for secrets
+      - id: check-secrets
+        name: Check No Secrets
+        entry: scripts/check-secrets.sh
+        language: script
+        files: \.(go|yaml|yml|json|env)$
+        pass_filenames: false
+
+  # Go specific hooks
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      # Run go fmt
+      - id: go-fmt
+
+      # Run go vet
+      - id: go-vet
+
+      # Run go mod tidy
+      - id: go-mod-tidy
+
+      # Build check
+      - id: go-build
+
+      # Run tests
+      - id: go-test
+        args: ["-race", "-coverprofile=coverage.out", "./..."]
+
+# Skip certain files
+exclude: |
+  (?x)^(
+    vendor/|
+    \.git/|
+    \.task-manager/|
+    backups/|
+    .*\.backup$|
+    .*\.example$|
+    config\.yaml$
+  )$

@@ -1,0 +1,39 @@
+# Binaries
+bin/
+builds/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.out
+
+# Test coverage
+coverage.out
+*.test
+
+# Local bookkeeping
+.task-manager/
+
+# Local configuration
+config.yaml
+# (Keep config.yaml.example or similar for version control)
+
+# Dependencies
+# vendor/ 
+# (Uncomment above if you decide NOT to commit dependencies)
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo

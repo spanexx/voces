@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Whisper Voice Utility
+Comment=System-wide push-to-talk voice transcription and TTS
+Exec=whisper-voice-util
+Icon=whisper-voice-util
+Terminal=false
+Categories=Utility;AudioVideo;
+Keywords=voice;transcription;tts;whisper;

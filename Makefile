@@ -1,0 +1,187 @@
+# Makefile for Whisper Voice Utility
+
+.PHONY: help precommit test build clean install-hooks install install-fast uninstall
+
+# Default target
+help:
+	@echo "Whisper Voice Utility - Makefile Commands"
+	@echo ""
+	@echo "  precommit     - Run all pre-commit checks"
+	@echo "  test          - Run tests with coverage"
+	@echo "  build         - Build the application"
+	@echo "  clean         - Clean build artifacts"
+	@echo "  install-hooks - Install git pre-commit hooks"
+	@echo "  install       - Build and install globally (requires sudo)"
+	@echo "  install-fast  - Install from existing bin/ artifacts (requires sudo)"
+	@echo "  uninstall     - Remove globally installed application"
+	@echo ""
+
+# Run all pre-commit checks
+precommit:
+	@echo "🔍 Running pre-commit checks..."
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "1/7: Checking protected directories..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@./scripts/check-protected-dirs.sh || exit 1
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "2/7: Checking for mocked test implementations..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@./scripts/check-no-test-mocks.sh || exit 1
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "3/7: Checking for mock implementations in code..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@./scripts/check-no-mocks.sh || exit 1
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "4/7: Checking file sizes..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@./scripts/check-file-size.sh || exit 1
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "5/7: Checking for proper comments..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@./scripts/check-comments.sh || exit 1
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "6/7: Checking test coverage..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@./scripts/check-coverage.sh || exit 1
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "7/7: Checking for secrets..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@./scripts/check-secrets.sh || exit 1
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "✅ All pre-commit checks passed!"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Run tests with coverage
+test:
+	@echo "🧪 Running tests with coverage..."
+	@go test -mod=vendor -race -coverprofile=coverage.out ./...
+	@go tool cover -func=coverage.out | grep total
+	@rm -f coverage.out
+
+# Build the application
+build:
+	@echo "🔨 Building application..."
+	@go build -mod=vendor -o bin/whisper-voice-util ./cmd/whisper-voice-util
+	@go build -mod=vendor -o bin/whisper-voice-overlay ./cmd/whisper-voice-overlay
+	@echo "✅ Build complete: bin/whisper-voice-util"
+
+# Clean build artifacts
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	@rm -rf bin/
+	@rm -f coverage.out
+	@echo "✅ Clean complete"
+
+# Install git pre-commit hooks
+install-hooks:
+	@echo "🔧 Installing git pre-commit hooks..."
+	@if command -v pre-commit >/dev/null 2>&1; then \
+		pre-commit install; \
+		echo "✅ Pre-commit hooks installed"; \
+	else \
+		echo "⚠️  pre-commit not found. Install with: pip install pre-commit"; \
+		echo "   Or use 'make precommit' before committing"; \
+	fi
+
+# Run Go formatting
+fmt:
+	@echo "📝 Formatting code..."
+	@go fmt ./...
+	@echo "✅ Format complete"
+
+# Run Go vet
+vet:
+	@echo "🔍 Running go vet..."
+	@go vet ./...
+	@echo "✅ Vet complete"
+
+# Run linter (requires golangci-lint)
+lint:
+	@echo "🔍 Running linter..."
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run; \
+	else \
+		echo "⚠️  golangci-lint not found. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
+	fi
+
+# Global installation
+PREFIX ?= /usr/local
+BINDIR = $(PREFIX)/bin
+DATADIR = $(PREFIX)/share
+WVUDIR = $(DATADIR)/whisper-voice-util
+WHISPERCPPDIR = $(WVUDIR)/whisper.cpp
+ICONDIR = $(DATADIR)/icons/hicolor/64x64/apps
+APPDIR = $(DATADIR)/applications
+
+install: build
+	@echo "🚚 Installing globally..."
+	@sudo -v
+	@$(MAKE) install-fast
+
+install-fast:
+	@echo "🚚 Installing from existing build artifacts..."
+	@sudo -v
+	@sudo mkdir -p $(BINDIR)
+	@sudo install -m 755 bin/whisper-voice-util $(BINDIR)/
+	@sudo install -m 755 bin/whisper-voice-overlay $(BINDIR)/
+	@# Optional: install managed whisper.cpp artifacts if built
+	@if [ -f vendor/whisper.cpp/build/bin/whisper-cli ]; then \
+		echo "📦 Installing managed whisper.cpp..."; \
+		sudo mkdir -p $(WHISPERCPPDIR)/bin $(WHISPERCPPDIR)/lib $(WHISPERCPPDIR)/models; \
+		sudo install -m 755 vendor/whisper.cpp/build/bin/whisper-cli $(WHISPERCPPDIR)/bin/; \
+		if [ -d vendor/whisper.cpp/build/lib ]; then sudo cp -a vendor/whisper.cpp/build/lib/. $(WHISPERCPPDIR)/lib/; fi; \
+		if [ -d vendor/whisper.cpp/models ]; then sudo cp -a vendor/whisper.cpp/models/. $(WHISPERCPPDIR)/models/; fi; \
+	fi
+	@sudo mkdir -p $(ICONDIR)
+	@sudo install -m 644 assets/icons/idle.png $(ICONDIR)/whisper-voice-util.png
+	@sudo mkdir -p $(APPDIR)
+	@sudo install -m 644 whisper-voice-util.desktop $(APPDIR)/
+	@if command -v gtk-update-icon-cache >/dev/null 2>&1; then \
+		sudo gtk-update-icon-cache -f -t $(DATADIR)/icons/hicolor || true; \
+	fi
+	@if command -v update-desktop-database >/dev/null 2>&1; then \
+		sudo update-desktop-database $(APPDIR) || true; \
+	fi
+	@echo "✅ Installation complete. You can now run 'whisper-voice-util' from anywhere."
+
+uninstall:
+	@echo "🗑️  Uninstalling globally..."
+	@sudo -v
+	@sudo rm -f $(BINDIR)/whisper-voice-util
+	@sudo rm -f $(BINDIR)/whisper-voice-overlay
+	@sudo rm -rf $(WHISPERCPPDIR)
+	@sudo rm -f $(ICONDIR)/whisper-voice-util.png
+	@sudo rm -f $(APPDIR)/whisper-voice-util.desktop
+	@if command -v gtk-update-icon-cache >/dev/null 2>&1; then \
+		sudo gtk-update-icon-cache -f -t $(DATADIR)/icons/hicolor || true; \
+	fi
+	@echo "✅ Uninstallation complete."
+
+vendor/whisper.cpp:
+	@git clone --depth 1 https://github.com/ggerganov/whisper.cpp vendor/whisper.cpp
+
+whispercpp-build: vendor/whisper.cpp
+	@echo "🔨 Building whisper.cpp (managed)..."
+	@mkdir -p vendor/whisper.cpp/build
+	@cmake -S vendor/whisper.cpp -B vendor/whisper.cpp/build -DWHISPER_BUILD_EXAMPLES=ON -DBUILD_SHARED_LIBS=ON
+	@cmake --build vendor/whisper.cpp/build -j
+
+whispercpp-install: whispercpp-build
+	@echo "📦 Installing whisper.cpp artifacts into $(WHISPERCPPDIR)..."
+	@sudo mkdir -p $(WHISPERCPPDIR)/bin $(WHISPERCPPDIR)/lib $(WHISPERCPPDIR)/models
+	@sudo install -m 755 vendor/whisper.cpp/build/bin/whisper-cli $(WHISPERCPPDIR)/bin/
+	@if [ -d vendor/whisper.cpp/build/lib ]; then sudo cp -a vendor/whisper.cpp/build/lib/. $(WHISPERCPPDIR)/lib/; fi
+	@if [ -d vendor/whisper.cpp/models ]; then sudo cp -a vendor/whisper.cpp/models/. $(WHISPERCPPDIR)/models/; fi
+
+# Run all checks (precommit + build + test)
+check: precommit build test
+	@echo ""
+	@echo "✅ All checks passed!"
