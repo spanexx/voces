@@ -79,7 +79,7 @@ repos:
 
       # Check test coverage
       - id: check-coverage
-        name: Check Test Coverage (85%+)
+        name: Check Test Coverage (70%+ on non-GTK packages)
         entry: scripts/check-coverage.sh
         language: script
         files: \.go$
