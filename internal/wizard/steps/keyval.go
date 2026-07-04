@@ -1,0 +1,90 @@
+/* Code Map: GDK Keyval Table
+ * - keyvalNames: maps GDK keyvals to the canonical names hotkey.ParseKeys
+ *   understands. GDK does not ship a reverse name table in gotk3, so we
+ *   keep the most common keys here.
+ * - keyvalToString: returns a human-readable label for a GDK keyval.
+ *   Falls back to the unicode character for printable keys, then to
+ *   a hex form for unknown specials. Never returns the empty string.
+ *
+ * The keyval→name mapping is split out from hotkey.go to keep that
+ * file under the 250-line size cap.
+ *
+ * CID Index:
+ * CID:wizard-keyval-001 -> keyvalNames
+ * CID:wizard-keyval-002 -> keyvalToString
+ *
+ * Quick lookup: rg -n "CID:wizard-keyval-" internal/wizard/steps/
+ */
+package steps
+
+import (
+	"fmt"
+
+	"github.com/gotk3/gotk3/gdk"
+)
+
+// CID:wizard-keyval-001 - keyvalNames
+// Purpose: reverse of gdk.KeyvalFromName. The F-keys are added by
+// init() so the static map below stays readable.
+var keyvalNames = map[uint]string{
+	0xff08: "BackSpace",
+	0xff09: "Tab",
+	0xff0d: "Return",
+	0xff1b: "Escape",
+	0xff20: "Caps_Lock",
+	0xff50: "Home",
+	0xff51: "Left",
+	0xff52: "Up",
+	0xff53: "Right",
+	0xff54: "Down",
+	0xff55: "Page_Up",
+	0xff56: "Page_Down",
+	0xff57: "End",
+	0xff63: "Insert",
+	0xffe1: "Shift_L",
+	0xffe2: "Shift_R",
+	0xffe3: "Control_L",
+	0xffe4: "Control_R",
+	0xffe9: "Alt_L",
+	0xffea: "Alt_R",
+	0xffeb: "Super_L",
+	0xffec: "Super_R",
+	0xffff: "Delete",
+}
+
+// fkeyMap maps "F1".."F12" to their GDK keyvals. Used by init() to
+// populate keyvalNames so the static map above stays readable.
+var fkeyMap = map[string]uint{
+	"F1":  0xffbe,
+	"F2":  0xffbf,
+	"F3":  0xffc0,
+	"F4":  0xffc1,
+	"F5":  0xffc2,
+	"F6":  0xffc3,
+	"F7":  0xffc4,
+	"F8":  0xffc5,
+	"F9":  0xffc6,
+	"F10": 0xffc7,
+	"F11": 0xffc8,
+	"F12": 0xffc9,
+}
+
+func init() {
+	for name, k := range fkeyMap {
+		keyvalNames[k] = name
+	}
+}
+
+// CID:wizard-keyval-002 - keyvalToString
+// Purpose: convert a GDK keyval to the string the hotkey parser
+// understands. The hotkey parser maps these names back to X11
+// keysyms, so the round-trip works end-to-end.
+func keyvalToString(k uint) string {
+	if name, ok := keyvalNames[k]; ok {
+		return name
+	}
+	if r := gdk.KeyvalToUnicode(k); r != 0 {
+		return string(r)
+	}
+	return fmt.Sprintf("0x%04x", k)
+}
