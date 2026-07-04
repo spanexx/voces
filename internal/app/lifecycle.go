@@ -103,11 +103,11 @@ func (a *Application) Run() {
 
 	a.Notifier.Info("Whisper Voice Utility Ready", "Application is running in the background.")
 
-	// Capture OS signals for graceful termination (Ctrl+C, kill)
+	// Capture OS signals for graceful termination (Ctrl+C, kill).
+	// Started before the tray so a SIGTERM during systray init
+	// still unblocks Run().
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	// Monitor context cancellation internally (from Tray or errors)
 	go func() {
 		select {
 		case <-sigChan:
@@ -124,6 +124,11 @@ func (a *Application) Run() {
 		defer a.wg.Done()
 		a.Tray.Run() // blocks until tray.Quit()
 	}()
+
+	// Kick off the background update check. Silent on the no-update
+	// path; shows a single notification on the update-available path.
+	// Phase 7: IMPL §7 — initial check 10 s after Run() returns.
+	a.startAutoCheck()
 
 	<-a.ctx.Done() // Wait until application is requested to stop
 

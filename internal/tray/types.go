@@ -46,6 +46,9 @@ func (s State) String() string {
 // The OnRunSetup / OnCheckUpdates / OnOpenDataDir handlers (Phase 6)
 // live alongside the legacy record / engine handlers. They are
 // optional — when nil the corresponding menu item is a no-op.
+//
+// OnApplyUpdate (Phase 7) fires when the user clicks the dynamic
+// "Update available (vX.Y.Z)" menu item. It is also optional.
 type ActionHandlers struct {
 	OnRecordStart            func()
 	OnReadClipboard          func()
@@ -53,6 +56,7 @@ type ActionHandlers struct {
 	OnSetTTSEngine           func(engine string)
 	OnRunSetup               func()
 	OnCheckUpdates           func()
+	OnApplyUpdate            func()
 	OnOpenDataDir            func()
 	OnQuit                   func()
 }

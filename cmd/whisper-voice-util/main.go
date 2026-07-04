@@ -134,6 +134,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v\n", err)
 	}
+	application.SetVersion(Version)
 
 	application.Run()
 }

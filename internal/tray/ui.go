@@ -62,6 +62,11 @@ func (m *Manager) onReady() {
 	systray.SetTitle("Whisper Voice Utility")
 	systray.SetTooltip("Whisper Voice Utility - Ready")
 
+	// Phase 7 — dynamic "Update available" item at the top of the
+	// menu. Hidden until SetUpdateBadge is called with a newer
+	// release. See ui_phase7.go.
+	m.addPhase7MenuItems()
+
 	m.mRecord = systray.AddMenuItem("Record Now", "Trigger manual recording")
 	go func() {
 		for range m.mRecord.ClickedCh {

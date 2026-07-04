@@ -41,6 +41,7 @@ type Manager struct {
 	mRunSetup     *systray.MenuItem
 	mCheckUpdates *systray.MenuItem
 	mOpenDataDir  *systray.MenuItem
+	mUpdate       *systray.MenuItem // Phase 7: hidden by default; shown when an update is available
 }
 
 // CID:tray-manager-002 - New

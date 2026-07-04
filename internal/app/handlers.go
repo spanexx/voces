@@ -100,8 +100,14 @@ func (a *Application) buildTrayHandlers() tray.ActionHandlers {
 			go a.runSetupSubprocess()
 		},
 		OnCheckUpdates: func() {
-			log.Println("Tray action: OnCheckUpdates (Phase 7 update)")
-			a.Notifier.Info("Updates", "Update check will be available in the next release")
+			log.Println("Tray action: OnCheckUpdates")
+			// Click is always user-initiated, so we always show a
+			// notification (up to date / available / failed).
+			a.checkForUpdates(true)
+		},
+		OnApplyUpdate: func() {
+			log.Println("Tray action: OnApplyUpdate")
+			go a.applyUpdate()
 		},
 		OnOpenDataDir: func() {
 			log.Println("Tray action: OnOpenDataDir")
