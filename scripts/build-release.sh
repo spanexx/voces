@@ -139,7 +139,7 @@ fi
 # install.sh: the top-level one-liner installer. Goes into the tarball
 # (so an extracted copy can re-run itself) AND into builds/ as a
 # sibling release asset (so the one-liner URL works:
-#   https://github.com/<owner>/<repo>/releases/latest/download/install.sh).
+#   https://github.com/spanexx/voces/releases/latest/download/install.sh).
 if [[ -f install.sh ]]; then
     cp install.sh "${RELEASE_DIR}/install.sh"
     chmod +x "${RELEASE_DIR}/install.sh"
@@ -179,4 +179,4 @@ echo "Next: upload to GitHub Releases as a ${VERSION/-rc/.rc} pre-release (rc) o
 echo "latest (non-rc). The App's auto-updater will then find it automatically."
 echo ""
 echo "User-facing install (after upload):"
-echo "  curl -fsSL https://github.com/<owner>/whisper-voice-util/releases/latest/download/install.sh | bash"
+echo "  curl -fsSL https://github.com/spanexx/voces/releases/latest/download/install.sh | bash"

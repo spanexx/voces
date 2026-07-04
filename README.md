@@ -23,7 +23,7 @@ Works on any Debian-family Linux distribution (Ubuntu, Pop!_OS, Linux Mint, elem
 ### Quick install (one line)
 
 ```bash
-curl -fsSL https://github.com/yourusername/whisper-voice-util/releases/latest/download/install.sh | bash
+curl -fsSL https://github.com/spanexx/voces/releases/latest/download/install.sh | bash
 ```
 
 That's it. The script downloads the latest tarball, extracts it to `/opt/whisper-voice-util/`, runs `install-deps.sh` to install the system libraries, links the binaries into your `$PATH`, and adds an app-menu entry. When it finishes, type `whisper-voice-util` (or click the menu entry) — the setup wizard will open on first launch.
@@ -42,7 +42,7 @@ If you'd rather see what runs (or you're on a non-Debian distro), the manual pat
 
 ### 1. Download the latest release
 
-Grab `whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz` from the [GitHub Releases page](https://github.com/yourusername/whisper-voice-util/releases). Place it anywhere — your home directory is fine.
+Grab `whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz` from the [GitHub Releases page](https://github.com/spanexx/voces/releases). Place it anywhere — your home directory is fine.
 
 ### 2. Extract
 
@@ -99,8 +99,8 @@ If you'd like `whisper-voice-util` on your `$PATH` and a desktop file in your ap
 If you want the very latest code or to modify the App:
 
 ```bash
-git clone https://github.com/yourusername/whisper-voice-util.git
-cd whisper-voice-util
+git clone https://github.com/spanexx/voces.git
+cd voces
 make build                  # builds the two Go binaries
 make whispercpp-build       # compiles the vendored whisper.cpp
 sudo ./scripts/install-deps.sh   # same as the tarball step

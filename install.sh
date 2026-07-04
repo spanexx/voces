@@ -2,7 +2,7 @@
 # Whisper Voice Utility one-line installer.
 #
 # Usage:
-#   curl -fsSL https://github.com/yourusername/whisper-voice-util/releases/latest/download/install.sh | bash
+#   curl -fsSL https://github.com/spanexx/voces/releases/latest/download/install.sh | bash
 #
 # What it does:
 #   1. Detects the latest published release from GitHub.
@@ -19,7 +19,7 @@
 
 set -euo pipefail
 
-REPO="yourusername/whisper-voice-util"
+REPO="spanexx/voces"
 INSTALL_DIR="/opt/whisper-voice-util"
 
 # Sudo setup. Most distros already have sudo configured; for the
