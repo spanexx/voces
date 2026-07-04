@@ -75,6 +75,11 @@ func BuildFinish(win *gtk.Window, stateReader StateReader) (*Step, error) {
 		return nil, fmt.Errorf("finish: build content: %w", err)
 	}
 
-	win.Add(box)
+	// Note: do not win.Add(box) here. The runner is the single source
+	// of truth for attaching the step box to the window (wizard.go
+	// showStepAt). Double-adding raises:
+	//   "Attempting to add a widget with type GtkBox to a container of
+	//    type GtkWindow, but the widget is already inside a container
+	//    of type GtkWindow"
 	return &Step{Box: box, Next: next, Back: back, Capture: nil}, nil
 }
