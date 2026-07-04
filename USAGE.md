@@ -7,16 +7,41 @@ Whisper Voice Utility is a tool that lets you talk into your computer and have i
 ## 🚀 How to Install
 
 ### 1. Get the Software
-You can either download a ready-to-use version or build it yourself:
-*   **Ready-to-use:** Look for the file `whisper-voice-util-v1.0.1-linux-amd64.tar.gz` in the `builds/` folder. Extract it anywhere you like.
-*   **Build from scratch:** If you have the code, just open a terminal and type:
+Download the latest release from the [GitHub Releases page](https://github.com/yourusername/whisper-voice-util/releases) — look for a file ending in `-linux-amd64.tar.gz`.
+
+*   **Ready-to-use:** Download the `.tar.gz` file, extract it anywhere:
+    ```bash
+    tar xzf whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz
+    cd whisper-voice-util-vX.Y.Z
+    ```
+*   **Build from scratch:** If you have the source code, open a terminal in the project folder and type:
     ```bash
     make build
     ```
-    This will create the program in a folder called `bin`.
+    This creates the program in a folder called `bin`.
 
-### 2. Global Installation (Recommended)
-To make the program available everywhere on your system (adding it to your app menu and allowing you to run it from any terminal), use the following command:
+### 2. Install System Helpers (one time)
+Your computer needs a few extra "helpers" to handle the clipboard, keyboard, and system tray. From inside the extracted folder, run:
+```bash
+sudo ./install-deps.sh
+```
+This is safe to re-run. It only installs what's missing.
+
+### 3. First Run
+Find the `whisper-voice-util` file and double-click it, or run it from the terminal:
+```bash
+./whisper-voice-util
+```
+On first launch, a **setup wizard** window appears. It walks you through:
+- Picking your language
+- Downloading the speech recognition "brain" (a model file)
+- Picking a hotkey
+- (Optional) Downloading a voice for the speaking feature
+
+Click "Start" at the end. The wizard saves your choices and the tray icon (a small microphone in your system tray) appears. You're ready to go.
+
+### 4. (Optional) Global Installation
+To make the program available everywhere on your system (adding it to your app menu and letting you run `whisper-voice-util` from any terminal), use the following command:
 ```bash
 sudo make install
 ```
@@ -25,29 +50,11 @@ This will:
 - Add an icon to your application menu.
 - Register the app so it appears in your launcher.
 
-*To remove it later, you can use `sudo make uninstall`.*
-
-### 3. Install Needed Tools
-Your computer needs a few extra "helpers" to handle the clipboard and keyboard. Run this command in your terminal:
-```bash
-sudo apt-get update
-sudo apt-get install -y xclip xdotool libx11-dev libxtst-dev libayatana-appindicator3-dev
-```
-
-### 3. (Optional) Set Up Local AI
-If you want the program to work without the internet, you'll need the "brains" (models) for transcription and speaking:
-*   **For typing:** Get [whisper.cpp](https://github.com/ggerganov/whisper.cpp).
-*   **For speaking:** Get [piper](https://github.com/rhasspy/piper).
+*To remove it later, run `sudo make uninstall`.*
 
 ---
 
 ## 🛠️ How to Use
-
-### Starting the Program
-Find the `whisper-voice-util` file and double-click it, or run it from the terminal:
-```bash
-./bin/whisper-voice-util
-```
 
 ### Talking to Type
 1. Move your cursor to where you want to type (like an email or a document).
@@ -57,17 +64,23 @@ Find the `whisper-voice-util` file and double-click it, or run it from the termi
 5. Wait a second, and the text will appear where you were typing!
 
 ### Hearing the Clipboard
-1. Copy some text (like you normally do with Ctrl+C).
+1. Copy some text (like you normally do with `Ctrl+C`).
 2. Press the `F10` key.
 3. The computer will read the text back to you.
 
 ### Changing Settings
-Look for the **Microphone icon** in the corner of your screen (the "System Tray"):
-*   **Right-click** it to change which "engine" (brain) the program uses.
-*   Click **Open Settings** to change hotkeys or file paths. The program will open a text file called `config.yaml` for you to edit.
+Right-click the **microphone icon** in the corner of your screen (the "System Tray") to see options:
+*   Change which transcription or voice engine is active.
+*   **Run setup again...** — re-do the wizard (great for picking a different model or hotkey).
+*   **Check for updates** — see if a new version is available.
+*   **Open App-managed folder** — see the downloaded model files and your setup state.
+*   **Open Config** — edit advanced settings in `config.yaml`.
+*   **Quit** — close the program.
 
 ---
 
 ## ❓ Things to Remember
-*   **First Run:** The first time you open the program, it creates a `config.yaml` file. You may need to edit this file to tell the program where you saved your AI models.
-*   **API Keys:** If you use "Cloud" versions (like OpenAI or ElevenLabs), you must put your secret API keys in the `config.yaml` file.
+*   **First Run:** The first time you open the program, the setup wizard runs. You don't need to edit any config files by hand — the wizard does it for you.
+*   **API Keys:** If you use "Cloud" engines (OpenAI for transcription, ElevenLabs for voice), put your API keys in `config.yaml` (or use the `${OPENAI_API_KEY}` and `${ELEVENLABS_API_KEY}` env-var syntax). The wizard doesn't ask for these.
+*   **Updates:** When a new version is published on GitHub, a "Update available" item appears at the top of the tray menu. Click it to download and restart automatically.
+*   **Need Help?** See the [README Troubleshooting section](README.md#troubleshooting) for common issues (wizard not appearing, tray icon missing, hotkey not working, models not downloading).
