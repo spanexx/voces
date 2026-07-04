@@ -127,6 +127,11 @@ func (m *Manager) onReady() {
 		}
 	}()
 
+	// Phase 6 — wizard / updates / data-dir access. See ui_phase6.go.
+	m.addPhase6MenuItems()
+
+	systray.AddSeparator()
+
 	m.mLogs = systray.AddMenuItem("View Logs", "Open application logs")
 	go func() {
 		for range m.mLogs.ClickedCh {

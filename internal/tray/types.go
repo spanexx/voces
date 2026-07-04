@@ -42,10 +42,17 @@ func (s State) String() string {
 
 // CID:tray-types-002 - ActionHandlers
 // Purpose: Interface for the tray to communicate user interactions back to the app logic.
+//
+// The OnRunSetup / OnCheckUpdates / OnOpenDataDir handlers (Phase 6)
+// live alongside the legacy record / engine handlers. They are
+// optional — when nil the corresponding menu item is a no-op.
 type ActionHandlers struct {
 	OnRecordStart            func()
 	OnReadClipboard          func()
 	OnSetTranscriptionEngine func(engine string)
 	OnSetTTSEngine           func(engine string)
+	OnRunSetup               func()
+	OnCheckUpdates           func()
+	OnOpenDataDir            func()
 	OnQuit                   func()
 }

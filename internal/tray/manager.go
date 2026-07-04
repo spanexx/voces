@@ -38,6 +38,9 @@ type Manager struct {
 	mQuit         *systray.MenuItem
 	mSettings     *systray.MenuItem
 	mLogs         *systray.MenuItem
+	mRunSetup     *systray.MenuItem
+	mCheckUpdates *systray.MenuItem
+	mOpenDataDir  *systray.MenuItem
 }
 
 // CID:tray-manager-002 - New

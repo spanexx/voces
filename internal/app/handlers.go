@@ -95,6 +95,18 @@ func (a *Application) buildTrayHandlers() tray.ActionHandlers {
 			a.Notifier.Info("Engine Changed", "TTS engine set to "+engine)
 			a.saveConfigAsync()
 		},
+		OnRunSetup: func() {
+			log.Println("Tray action: OnRunSetup (re-spawning wizard)")
+			go a.runSetupSubprocess()
+		},
+		OnCheckUpdates: func() {
+			log.Println("Tray action: OnCheckUpdates (Phase 7 update)")
+			a.Notifier.Info("Updates", "Update check will be available in the next release")
+		},
+		OnOpenDataDir: func() {
+			log.Println("Tray action: OnOpenDataDir")
+			go a.openDataDir()
+		},
 		OnQuit: func() {
 			log.Println("Tray action: Quit requested")
 			a.cancel() // Triggers the context cancellation in Run()

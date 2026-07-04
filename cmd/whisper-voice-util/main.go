@@ -92,11 +92,11 @@ func loadManifest() (*setup.Manifest, error) {
 
 // main initializes the application controller and starts the system tray.
 func main() {
-	setupFlag := flag.Bool("setup", false, "Run the setup wizard before starting")
-	versionFlag := flag.Bool("version", false, "Print the application version and exit")
-	flag.Parse()
-
-	if *versionFlag {
+	parsed, err := parseArgs(os.Args[1:])
+	if err != nil {
+		log.Fatalf("flag parsing: %v\n", err)
+	}
+	if parsed.showVersion {
 		fmt.Printf("Whisper Voice Utility version %s\n", Version)
 		os.Exit(0)
 	}
@@ -110,14 +110,22 @@ func main() {
 		}
 	}
 
-	// The wizard needs to run before app.New() so the single-instance
-	// lock doesn't fire while the user is still configuring. The
-	// --setup flag and the `setup` subcommand (positional) both
-	// funnel into maybeRunSetup → wizardcli.ShouldRunSetup.
-	forceSetup := *setupFlag
-	if len(flag.Args()) > 0 && flag.Args()[0] == "setup" {
-		forceSetup = true
+	// Wizard-only mode: run the wizard and exit. Used by the tray's
+	// "Run setup again..." handler, which spawns a subprocess and
+	// continues running independently. Do NOT take the single-instance
+	// lock here — the parent tray process holds it.
+	if parsed.wizardOnly {
+		if _, err := maybeRunSetup(true); err != nil {
+			log.Fatalf("Setup failed: %v\n", err)
+		}
+		return
 	}
+
+	// First-run + explicit setup modes share the same wizard path.
+	// maybeRunSetup returns (state, err) — when the wizard was already
+	// complete and no flag was passed, state is nil and the app
+	// proceeds straight to the tray.
+	forceSetup := parsed.runSetup || parsed.setupPositional
 	if _, err := maybeRunSetup(forceSetup); err != nil {
 		log.Fatalf("Setup failed: %v\n", err)
 	}
@@ -128,4 +136,41 @@ func main() {
 	}
 
 	application.Run()
+}
+
+// parsedArgs is the structured result of CLI argument parsing.
+// Extracted from main so it can be unit-tested without spawning the
+// GTK main loop. See parseArgs for semantics.
+type parsedArgs struct {
+	showVersion     bool
+	runSetup        bool
+	wizardOnly      bool
+	setupPositional bool
+}
+
+// parseArgs interprets os.Args[1:] and returns the user's intent.
+// Three independent triggers for running the wizard:
+//
+//	--setup            run the wizard before the tray (CLI flag)
+//	setup (positional) same as --setup, kept for backwards compat
+//	--wizard-only      run only the wizard and exit (no tray, no
+//	                   single-instance lock); used by the tray menu
+func parseArgs(args []string) (parsedArgs, error) {
+	fs := flag.NewFlagSet("whisper-voice-util", flag.ContinueOnError)
+	showVersion := fs.Bool("version", false, "Print the application version and exit")
+	runSetup := fs.Bool("setup", false, "Run the setup wizard before starting the tray")
+	wizardOnly := fs.Bool("wizard-only", false, "Run only the setup wizard and exit (no tray)")
+	if err := fs.Parse(args); err != nil {
+		return parsedArgs{}, err
+	}
+	setupPositional := false
+	if positional := fs.Args(); len(positional) > 0 && positional[0] == "setup" {
+		setupPositional = true
+	}
+	return parsedArgs{
+		showVersion:     *showVersion,
+		runSetup:        *runSetup,
+		wizardOnly:      *wizardOnly,
+		setupPositional: setupPositional,
+	}, nil
 }
