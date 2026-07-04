@@ -199,7 +199,7 @@ check: precommit build test
 # (with -ldflags for Version injection), compiles both engines, and bundles
 # them together with docs + install-deps.sh + config.yaml.example.
 release:
-	@VERSION="${VERSION:-v0.0.0-dev}"; \
+	@VERSION="$${VERSION:-v0.0.0-dev}"; \
 	if [ "$$VERSION" = "v0.0.0-dev" ]; then \
 		echo "ℹ️  VERSION not set, defaulting to $$VERSION"; \
 		echo "   Override with: make release VERSION=v0.2.0"; \
