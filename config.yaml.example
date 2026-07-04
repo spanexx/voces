@@ -1,0 +1,114 @@
+# Whisper Voice Utility Configuration
+# ===================================
+# Shipped with the release tarball. The setup wizard (first-run, or
+# "Run setup again..." from the tray) overwrites the empty path
+# placeholders below with absolute paths it resolves from
+# $WVU_ENGINES_DIR and the XDG data directory.
+#
+# You should not need to edit this file by hand. If the wizard was
+# skipped, the empty binary_path/model entries below will cause the
+# App to error out at first use — re-run the wizard from the tray
+# menu, or fill the placeholders below with absolute paths to the
+# engine binaries and downloaded models.
+#
+# Environment variables (e.g., ${OPENAI_API_KEY}) are substituted at runtime.
+
+# Transcription Settings
+# ----------------------
+transcription:
+  # Default transcription engine: whisper_cpp or openai_api
+  default_engine: whisper_cpp
+
+  # Whisper CPP (local transcription using whisper.cpp)
+  whisper_cpp:
+    # Path to the whisper.cpp binary. Filled by the setup wizard.
+    binary_path: ""
+    # Path to the whisper model file (ggml format). Filled by the setup wizard.
+    model: ""
+    # Language code (e.g., 'en', 'es', 'fr'). Leave empty for auto-detection.
+    language: ""
+    # Compute type: float, float16, int8, etc.
+    compute_type: float
+
+  # OpenAI API (cloud transcription using Whisper API)
+  openai_api:
+    # OpenAI API key (use environment variable for security)
+    api_key: ${OPENAI_API_KEY}
+    # Model to use for transcription
+    model: whisper-1
+    # Optional prompt to guide transcription (leave empty for no prompt)
+    prompt: ""
+
+# Text-to-Speech (TTS) Settings
+# -----------------------------
+tts:
+  # Default TTS engine: piper or elevenlabs
+  default_engine: piper
+
+  # Piper (local TTS using Piper)
+  piper:
+    # Path to the Piper binary. Filled by the setup wizard.
+    binary_path: ""
+    # Path to the Piper model file (.onnx). Filled by the setup wizard.
+    model: ""
+    # Path to the voice configuration file (.json). Filled by the setup wizard.
+    voice_config: ""
+    # Audio output device (leave empty for default)
+    output_device: ""
+
+  # ElevenLabs (cloud TTS using ElevenLabs API)
+  elevenlabs:
+    # ElevenLabs API key (use environment variable for security)
+    api_key: ${ELEVENLABS_API_KEY}
+    # Voice ID to use for synthesis
+    voice_id: 21m00Tcm4TlvDq8ikWAM
+    # Model to use for synthesis
+    model: eleven_monolingual_v1
+    # Stability setting (0.0 to 1.0)
+    stability: 0.5
+    # Similarity boost setting (0.0 to 1.0)
+    similarity_boost: 0.75
+
+# Audio Settings
+# --------------
+audio:
+  # Sample rate in Hz
+  sample_rate: 16000
+  # Number of audio channels (1 = mono, 2 = stereo)
+  channels: 1
+  # Chunk size for audio processing
+  chunk_size: 1024
+  # Maximum recording duration in seconds
+  max_duration: 300
+
+# Hotkey Settings
+# ---------------
+hotkeys:
+  # Start recording and type transcription when released
+  record_and_type: "<rightctrl>+<left>"
+  # Stop an in-progress recording
+  stop_recording: ""
+  # Read clipboard content aloud
+  read_clipboard: "<f10>"
+  # Toggle TTS on/off
+  toggle_tts: "<f11>"
+  # Toggle transcription on/off
+  toggle_transcription: "<f12>"
+
+# Behavior Settings
+# -----------------
+behavior:
+  # Automatically type transcription after recording
+  auto_type: true
+  # Delay in milliseconds between typed characters
+  type_delay: 15
+  # Play sound when application starts
+  sound_on_start: false
+  # Play sound when operation completes
+  sound_on_end: false
+  # Enable desktop notifications
+  notifications: true
+  # Start the App automatically on login
+  autostart: false
+  # Delay (in seconds) before the autostarted App activates hotkeys
+  autostart_delay: 5

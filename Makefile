@@ -1,19 +1,23 @@
 # Makefile for Whisper Voice Utility
 
-.PHONY: help precommit test build clean install-hooks install install-fast uninstall
+.PHONY: help precommit test build clean install-hooks install install-fast uninstall release release-clean engines vendor/whisper.cpp whispercpp-build whispercpp-install vendor/piper piper-build
 
 # Default target
 help:
 	@echo "Whisper Voice Utility - Makefile Commands"
 	@echo ""
-	@echo "  precommit     - Run all pre-commit checks"
-	@echo "  test          - Run tests with coverage"
-	@echo "  build         - Build the application"
-	@echo "  clean         - Clean build artifacts"
-	@echo "  install-hooks - Install git pre-commit hooks"
-	@echo "  install       - Build and install globally (requires sudo)"
-	@echo "  install-fast  - Install from existing bin/ artifacts (requires sudo)"
-	@echo "  uninstall     - Remove globally installed application"
+	@echo "  precommit              - Run all pre-commit checks"
+	@echo "  test                   - Run tests with coverage"
+	@echo "  build                  - Build the application"
+	@echo "  clean                  - Clean build artifacts"
+	@echo "  install-hooks          - Install git pre-commit hooks"
+	@echo "  install                - Build and install globally (requires sudo)"
+	@echo "  install-fast           - Install from existing bin/ artifacts (requires sudo)"
+	@echo "  uninstall              - Remove globally installed application"
+	@echo "  release [VERSION=...]  - Build the distribution tarball (Phase 8)"
+	@echo "  release-clean          - Remove builds/ directory"
+	@echo "  engines                - Build both whisper.cpp and piper engines"
+	@echo "  check                  - precommit + build + test (all-in-one)"
 	@echo ""
 
 # Run all pre-commit checks
@@ -185,3 +189,61 @@ whispercpp-install: whispercpp-build
 check: precommit build test
 	@echo ""
 	@echo "✅ All checks passed!"
+
+# =============================================================================
+# Phase 8: release pipeline (IMPL §8 / ADR-0001 / ADR-0002)
+# =============================================================================
+
+# release [VERSION=vX.Y.Z] — produce the distributable tarball.
+# Defaults to a `dev` version if VERSION is unset. Builds both Go binaries
+# (with -ldflags for Version injection), compiles both engines, and bundles
+# them together with docs + install-deps.sh + config.yaml.example.
+release:
+	@VERSION="${VERSION:-v0.0.0-dev}"; \
+	if [ "$$VERSION" = "v0.0.0-dev" ]; then \
+		echo "ℹ️  VERSION not set, defaulting to $$VERSION"; \
+		echo "   Override with: make release VERSION=v0.2.0"; \
+	fi; \
+	bash scripts/build-release.sh "$$VERSION"
+
+# release-clean — wipe the builds/ directory (the release artifacts).
+release-clean:
+	@echo "🧹 Cleaning builds/ directory..."
+	@rm -rf builds/
+	@echo "✅ Release artifacts removed."
+
+# engines — convenience: build both engine binaries without the full tarball.
+# Useful for local smoke testing or `make install` after manual edits.
+engines: whispercpp-build piper-build
+
+vendor/piper:
+	@echo "📥 Cloning piper (rhasspy/piper) into vendor/piper..."
+	@git clone --depth 1 https://github.com/rhasspy/piper vendor/piper
+	@echo "✅ piper vendored."
+	@echo ""
+	@echo "⚠️  NOTE: piper has heavy build deps (ONNX runtime, espeak-ng, etc.)."
+	@echo "   If 'make piper-build' fails, you can either:"
+	@echo "   (a) install piper system-wide (apt: piper); or"
+	@echo "   (b) download a prebuilt binary from piper's release page."
+
+# piper-build — compile the vendored piper source. Heavy build.
+# Currently a documented stub: prints instructions. Full cmake build is
+# gated on a working ONNX runtime + espeak-ng + build toolchain.
+piper-build: vendor/piper
+	@if [ ! -f vendor/piper/CMakeLists.txt ]; then \
+		echo "❌ vendor/piper/CMakeLists.txt not found."; \
+		echo "   The vendored piper source seems incomplete."; \
+		echo "   Try: rm -rf vendor/piper && make vendor/piper"; \
+		exit 1; \
+	fi
+	@echo "🔨 Building piper (managed)..."
+	@echo ""
+	@echo "   Full piper build requires ONNX runtime + espeak-ng. Skipping the"
+	@echo "   heavy build by default. To enable:"
+	@echo "     1. apt install libonnxruntime-dev libespeak-ng-dev"
+	@echo "     2. cd vendor/piper && cmake -B build -S . && cmake --build build -j"
+	@echo "     3. re-run 'make release' — piper will be picked up automatically"
+	@echo ""
+	@echo "   For now, this target is a no-op so 'make release' still works."
+	@echo "   TTS users will need a system-wide piper install until Phase 8.1 lands."
+	@exit 0

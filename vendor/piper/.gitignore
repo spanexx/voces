@@ -1,0 +1,26 @@
+# piper build artifacts
+# Mirrors the vendor/whisper.cpp/.gitignore pattern.
+build/
+build-*/
+build_*/
+tmp/
+
+# Generic
+*.o
+*.a
+*.d
+*.so
+*.out
+.DS_Store
+.idea/
+.vscode/
+.cache/
+.venv/
+.cxx/
+.gradle/
+compile_commands.json
+
+# Piper-specific
+/piper
+/CMakeCache.txt
+/CMakeFiles/

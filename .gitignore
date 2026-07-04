@@ -20,8 +20,12 @@ config.yaml
 # (Keep config.yaml.example or similar for version control)
 
 # Dependencies
-# vendor/ 
+# vendor/
 # (Uncomment above if you decide NOT to commit dependencies)
+
+# Phase 8: vendored C++ engine build outputs (sources are committed, builds aren't)
+vendor/whisper.cpp/build/
+vendor/piper/build/
 
 # OS generated files
 .DS_Store
