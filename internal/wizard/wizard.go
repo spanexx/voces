@@ -220,6 +220,13 @@ func RunFull() (*State, error) {
 		return nil, fmt.Errorf("wizard: build step %d: %w", idx, err)
 	}
 
+	// Show the window + the first step. Without this call, gtk.Main()
+	// blocks indefinitely on a hidden window (the step box's ShowAll
+	// only marks the box and its children visible — the top-level
+	// GtkWindow stays hidden and nothing is rendered to the screen).
+	// Mirrors what RunWelcome does at the end of its setup.
+	win.ShowAll()
+
 	win.Connect("destroy", func() {
 		select {
 		case result <- nil:
