@@ -90,23 +90,22 @@ func (r *Recorder) Record(durationSeconds int) ([]byte, error) {
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
+	// Start arecord BEFORE publishing the cmd on r.cmd. Otherwise a
+	// concurrent Stop() that grabs r.cmd under the lock could read
+	// cmd.Process (which cmd.Start writes) without synchronization,
+	// tripping the -race detector.
+	startErr := cmd.Start()
+	if startErr != nil {
+		os.Remove(tmpFile)
+		return nil, fmt.Errorf("arecord failed to start: %w, stderr: %s", startErr, stderr.String())
+	}
+
 	r.mu.Lock()
 	r.isRecording = true
 	r.cmd = cmd
 	r.cancel = cancel
 	r.stopRequested = false
 	r.mu.Unlock()
-
-	startErr := cmd.Start()
-	if startErr != nil {
-		r.mu.Lock()
-		r.isRecording = false
-		r.cmd = nil
-		r.cancel = nil
-		r.mu.Unlock()
-		os.Remove(tmpFile)
-		return nil, fmt.Errorf("arecord failed to start: %w, stderr: %s", startErr, stderr.String())
-	}
 
 	err := cmd.Wait()
 
@@ -150,20 +149,27 @@ func (r *Recorder) Stop() {
 	r.stopRequested = true
 	cmd := r.cmd
 	cancel := r.cancel
+	// Snapshot cmd.Process under the lock. By the time r.cmd is
+	// non-nil (Record stores it after cmd.Start), cmd.Process is set
+	// and the underlying os/exec writes have completed.
+	var process *os.Process
+	if cmd != nil {
+		process = cmd.Process
+	}
 	r.mu.Unlock()
 
 	if cancel != nil {
 		cancel()
 	}
-	if cmd != nil && cmd.Process != nil {
-		_ = cmd.Process.Signal(syscall.SIGINT)
+	if process != nil {
+		_ = process.Signal(syscall.SIGINT)
 		// If it doesn't stop quickly, force kill.
 		go func(p *os.Process) {
 			t := time.NewTimer(800 * time.Millisecond)
 			defer t.Stop()
 			<-t.C
 			_ = p.Kill()
-		}(cmd.Process)
+		}(process)
 	}
 }
 

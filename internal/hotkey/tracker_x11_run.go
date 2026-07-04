@@ -32,8 +32,30 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
+
+// safeBuffer is a goroutine-safe wrapper around bytes.Buffer. The
+// xinput subprocess writes to it via cmd.Stderr while the parent
+// goroutine reads from it via xinputFailedQuickly, so the underlying
+// buffer needs its own mutex to keep `go test -race` clean.
+type safeBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (s *safeBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.Write(p)
+}
+
+func (s *safeBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.String()
+}
 
 var (
 	rxEventType = regexp.MustCompile(`\(RawKeyPress\)|\(RawKeyRelease\)|\(KeyPress\)|\(KeyRelease\)`)
@@ -105,7 +127,7 @@ func (t *x11KeyTracker) run(ctx context.Context) {
 }
 
 // CID:hotkey-tracker-x11-run-002 - startXinputTrackerProcess
-func startXinputTrackerProcess(ctx context.Context) (string, *exec.Cmd, *bufio.Reader, *bytes.Buffer) {
+func startXinputTrackerProcess(ctx context.Context) (string, *exec.Cmd, *bufio.Reader, *safeBuffer) {
 	// Try XI2 on root first.
 	mode, cmd, out, errBuf := startXinputCmd(ctx, []string{"test-xi2", "--root"})
 	if cmd != nil {
@@ -133,9 +155,9 @@ func startXinputTrackerProcess(ctx context.Context) (string, *exec.Cmd, *bufio.R
 }
 
 // CID:hotkey-tracker-x11-run-003 - startXinputCmd
-func startXinputCmd(ctx context.Context, args []string) (string, *exec.Cmd, *bufio.Reader, *bytes.Buffer) {
+func startXinputCmd(ctx context.Context, args []string) (string, *exec.Cmd, *bufio.Reader, *safeBuffer) {
 	cmd := exec.CommandContext(ctx, "xinput", args...)
-	errBuf := &bytes.Buffer{}
+	errBuf := &safeBuffer{}
 	cmd.Stderr = errBuf
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -152,7 +174,7 @@ func startXinputCmd(ctx context.Context, args []string) (string, *exec.Cmd, *buf
 }
 
 // CID:hotkey-tracker-x11-run-004 - xinputFailedQuickly
-func xinputFailedQuickly(cmd *exec.Cmd, errBuf *bytes.Buffer) bool {
+func xinputFailedQuickly(cmd *exec.Cmd, errBuf *safeBuffer) bool {
 	if cmd == nil {
 		return true
 	}
