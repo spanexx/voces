@@ -13,6 +13,8 @@
 #   - Detects /etc/os-release. Warns and exits non-zero on non-Debian/Ubuntu.
 #   - If $EUID != 0, prepends sudo to the package install.
 #   - Skips packages that dpkg reports as already installed.
+#   - Resolves <name> → <name>t64 on Ubuntu 24.04+ / Debian 13+ /
+#     Linux Mint 22+ where the original is a virtual package.
 #   - Exits 0 on success, non-zero on failure.
 #
 # Re-runnable. Safe to run after a failed attempt.
@@ -52,21 +54,41 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
     echo "🔒 Not running as root; will use sudo for package install."
 fi
 
-# 3. Runtime packages. Keep the list in lockstep with the comment at top.
+# 3. Resolve package names. Some distros (Ubuntu 24.04+, Debian 13+,
+#    Linux Mint 22+) moved libraries from <name> to <name>t64 to
+#    signal the time_t=64-bit ABI transition. On those distros the
+#    original <name> is either a transitional alias or a pure virtual
+#    package that apt will not auto-pick (failing the install with
+#    "Package 'X' has no installation candidate"). We prefer the t64
+#    variant when the apt cache lists it as a real package; older
+#    distros (Ubuntu 22.04, Debian 12) only have the base name and
+#    the helper falls back to that.
+resolve_pkg() {
+    local base="$1"
+    local t64="${base}t64"
+    if apt-cache show "$t64" 2>/dev/null \
+            | grep -q "^Package: ${t64}$"; then
+        echo "$t64"
+    else
+        echo "$base"
+    fi
+}
+
+# 4. Runtime packages. Keep the list in lockstep with the comment at top.
 PKGS=(
-    libgtk-3-0
+    "$(resolve_pkg libgtk-3-0)"
     libayatana-appindicator3-1
     xclip
     xdotool
     xdg-utils
     libx11-6
     libxtst6
-    libasound2
+    "$(resolve_pkg libasound2)"
     libpulse0
     espeak-ng
 )
 
-# 4. Filter out already-installed packages. `dpkg -s` exits 0 if installed.
+# 5. Filter out already-installed packages. `dpkg -s` exits 0 if installed.
 TO_INSTALL=()
 for pkg in "${PKGS[@]}"; do
     if dpkg -s "$pkg" >/dev/null 2>&1; then
@@ -86,7 +108,7 @@ echo ""
 echo "📦 Installing ${#TO_INSTALL[@]} package(s): ${TO_INSTALL[*]}"
 echo ""
 
-# 5. Run apt. -y to assume yes; --no-install-recommends to keep it minimal.
+# 6. Run apt. -y to assume yes; --no-install-recommends to keep it minimal.
 if ! "${SUDO[@]}" apt-get install -y --no-install-recommends "${TO_INSTALL[@]}"; then
     echo "" >&2
     echo "❌ apt-get install failed. Try:" >&2
