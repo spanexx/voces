@@ -1,3 +1,17 @@
+/* Code Map: Recording Overlay
+ * - Manager: owns the overlay subprocess and its stop-signal unix socket
+ * - New: constructor (zero-value ready)
+ * - Start: launches the overlay binary and returns a stop callback
+ * - Stop: kills the overlay subprocess and cleans up the socket
+ *
+ * CID Index:
+ * CID:overlay-001 -> Manager
+ * CID:overlay-002 -> New
+ * CID:overlay-003 -> Start
+ * CID:overlay-004 -> Stop
+ *
+ * Quick lookup: rg -n "CID:overlay-" internal/overlay/manager.go
+ */
 package overlay
 
 import (
@@ -12,6 +26,11 @@ import (
 	"time"
 )
 
+// CID:overlay-001 - Manager
+// Purpose: lifecycle owner of the cmd/whisper-voice-overlay subprocess.
+// The overlay process is a tiny standalone GTK window that animates
+// a "recording" bar; the manager launches it, signals STOP over a
+// unix socket when the user clicks, and cleans up on shutdown.
 type Manager struct {
 	mu     sync.Mutex
 	cmd    *exec.Cmd
@@ -19,6 +38,9 @@ type Manager struct {
 	cancel context.CancelFunc
 }
 
+// CID:overlay-002 - New
+// Purpose: zero-value constructor. The overlay subprocess is not
+// spawned until Start is called.
 func New() *Manager {
 	return &Manager{}
 }

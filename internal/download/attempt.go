@@ -1,5 +1,12 @@
-/* CID:download-004 -> doAttempt
+/* Code Map: Download Attempts
+ * - doAttempt: one HTTP GET to the partial file path
+ * - contentLength: HEAD probe for the server's Content-Length
+ *
+ * CID Index:
+ * CID:download-004 -> doAttempt
  * CID:download-005 -> contentLength
+ *
+ * Quick lookup: rg -n "CID:download-" internal/download/attempt.go
  */
 package download
 

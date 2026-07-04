@@ -1,3 +1,21 @@
+/* Code Map: Recording Overlay Binary
+ * - main: GTK init, builds the overlay window, runs the animation loop
+ * - positionBottomCenter: places the window at the bottom-center of the screen
+ * - roundedRect: cairo helper for the rounded bar background and bars
+ *
+ * The overlay is a tiny standalone GTK process spawned by
+ * internal/overlay.Manager when a recording starts. It animates a
+ * green "bar" pulse to give the user visual feedback. Clicking the
+ * window dials a unix socket back to the manager, which stops the
+ * recording. No go modules here — only gotk3 + cgo.
+ *
+ * CID Index:
+ * CID:overlay-bin-001 -> main
+ * CID:overlay-bin-002 -> positionBottomCenter
+ * CID:overlay-bin-003 -> roundedRect
+ *
+ * Quick lookup: rg -n "CID:overlay-bin-" cmd/whisper-voice-overlay/main.go
+ */
 package main
 
 // #cgo pkg-config: gdk-3.0
@@ -19,6 +37,10 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 )
 
+// CID:overlay-bin-001 - main
+// Purpose: GTK init + window construction + animation loop. Blocks
+// in gtk.Main() until the user clicks the overlay (sends STOP over
+// the unix socket) or the window is destroyed.
 func main() {
 	socketPath := flag.String("socket", "", "Unix socket to signal STOP on click")
 	flag.Parse()

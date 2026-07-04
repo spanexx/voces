@@ -88,13 +88,17 @@ func createDefaultConfig(dir string) error {
 	defaultConfig := `# Whisper Voice Utility Configuration
 # ===================================
 # Auto-generated default configuration.
-# Edit the paths below to match your system.
+# Path placeholders below are empty — the first-run setup wizard
+# (or "Run setup again..." from the tray menu) fills them in.
+# If the wizard was skipped, the App will error out at first use
+# until these paths point to real whisper.cpp / piper binaries
+# and downloaded model files.
 
 transcription:
   default_engine: whisper_cpp
   whisper_cpp:
-    binary_path: /opt/whisper.cpp/main
-    model: /opt/whisper.cpp/models/ggml-small.bin
+    binary_path: ""
+    model: ""
     language: ''
     compute_type: float
   openai_api:
@@ -105,9 +109,9 @@ transcription:
 tts:
   default_engine: piper
   piper:
-    binary_path: /opt/piper/piper
-    model: /opt/piper/models/en_US-lessac-medium.onnx
-    voice_config: /opt/piper/models/en_US-lessac-medium.onnx.json
+    binary_path: ""
+    model: ""
+    voice_config: ""
     output_device: ''
   elevenlabs:
     api_key: ${ELEVENLABS_API_KEY}

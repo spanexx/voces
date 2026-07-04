@@ -1,5 +1,12 @@
-/* CID:download-006 -> countingReader
+/* Code Map: Download Readers
+ * - countingReader: wraps an io.Reader, tracks total bytes, fires progress
+ * - hashingReader: wraps an io.Reader, updates a running hash on every Read
+ *
+ * CID Index:
+ * CID:download-006 -> countingReader
  * CID:download-007 -> hashingReader
+ *
+ * Quick lookup: rg -n "CID:download-" internal/download/readers.go
  */
 package download
 

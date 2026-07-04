@@ -1,6 +1,14 @@
-/* CID:download-008 -> httpStatusError
+/* Code Map: Download Errors
+ * - httpStatusError: typed error carrying the HTTP status code
+ * - isRetryable: classifies an error as retryable (5xx, network) or not (4xx)
+ * - compareDigest: verifies a downloaded SHA-256 against a known-good hex digest
+ *
+ * CID Index:
+ * CID:download-008 -> httpStatusError
  * CID:download-009 -> isRetryable
  * CID:download-010 -> compareDigest
+ *
+ * Quick lookup: rg -n "CID:download-" internal/download/errors.go
  */
 package download
 
