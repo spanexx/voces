@@ -3,12 +3,16 @@
  * - NewWhisperCPP: Factory for creating a WhisperCPP engine
  * - Transcribe: Converts audio to text via whisper.cpp binary
  *
+ * Sibling files in this package:
+ * - whisper_output.go: output parsing + error formatting
+ * - whisper_paths.go:  path resolution + validation
+ *
  * CID Index:
  * CID:transcription-whisper-001 -> WhisperCPP
  * CID:transcription-whisper-002 -> NewWhisperCPP
  * CID:transcription-whisper-003 -> Transcribe
  *
- * Quick lookup: rg -n "CID:transcription-whisper-" internal/transcription/whisper_cpp.go
+ * Quick lookup: rg -n "CID:transcription-whisper-" internal/transcription/
  */
 package transcription
 
@@ -19,7 +23,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -171,201 +174,4 @@ parse:
 		return "", fmt.Errorf("whisper.cpp produced no transcription output (binary=%s)", executedBinary)
 	}
 	return clean, nil
-}
-
-var whisperTimestampPrefixRE = regexp.MustCompile(`(?m)^\[[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3} --> [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}\]\s*`)
-
-var whisperMainDeprecationLineRE = regexp.MustCompile(`(?m)^(WARNING: The binary 'main' is deprecated\.|Please use 'whisper-cli' instead\.|See https://github\.com/ggerganov/whisper\.cpp/tree/master/examples/deprecation-warning/README\.md for more information\.)\s*$`)
-
-func stripWhisperTimestamps(s string) string {
-	if s == "" {
-		return s
-	}
-	s = whisperTimestampPrefixRE.ReplaceAllString(s, "")
-	lines := strings.Split(s, "\n")
-	clean := make([]string, 0, len(lines))
-	for _, ln := range lines {
-		ln = strings.TrimSpace(ln)
-		if ln == "" {
-			continue
-		}
-		clean = append(clean, ln)
-	}
-	return strings.Join(clean, " ")
-}
-
-func stripWhisperMainDeprecationWarning(s string) string {
-	if s == "" {
-		return s
-	}
-	lines := strings.Split(s, "\n")
-	clean := make([]string, 0, len(lines))
-	for _, ln := range lines {
-		ln = strings.TrimSpace(ln)
-		if ln == "" {
-			continue
-		}
-		if whisperMainDeprecationLineRE.MatchString(ln) {
-			continue
-		}
-		clean = append(clean, ln)
-	}
-	return strings.Join(clean, "\n")
-}
-
-func isMainDeprecationWarning(stdout, stderr string) bool {
-	out := stdout + "\n" + stderr
-	return strings.Contains(out, "The binary 'main' is deprecated")
-}
-
-func resolveWhisperTxtOutput(expectedTxtPath, cmdDir string) (string, string) {
-	// Prefer the expected location (next to the audio file).
-	if fileExists(expectedTxtPath) {
-		return expectedTxtPath, ""
-	}
-	// Some whisper.cpp builds write output relative to the working directory.
-	if cmdDir != "" {
-		alt := filepath.Join(cmdDir, filepath.Base(expectedTxtPath))
-		if fileExists(alt) {
-			return alt, expectedTxtPath
-		}
-	}
-	return expectedTxtPath, ""
-}
-
-func formatWhisperError(binary string, args []string, err error, stdout, stderr string) error {
-	msg := strings.TrimSpace(stderr)
-	if msg == "" {
-		msg = strings.TrimSpace(stdout)
-	}
-	if msg == "" {
-		return fmt.Errorf("whisper.cpp failed: %w (binary=%s)", err, binary)
-	}
-	return fmt.Errorf("whisper.cpp failed: %w (binary=%s, args=%s), output: %s", err, binary, strings.Join(args, " "), msg)
-}
-
-func shouldFallbackToMain(err error, stderr string) bool {
-	if err == nil {
-		return false
-	}
-	// exit status 127 is commonly used when the loader cannot execute due to missing shared libs
-	if strings.Contains(stderr, "error while loading shared libraries") {
-		return true
-	}
-	if strings.Contains(err.Error(), "exit status 127") {
-		return true
-	}
-	return false
-}
-
-func withPrependedEnvPath(env []string, key, dir string) []string {
-	prefix := key + "="
-	for i, kv := range env {
-		if strings.HasPrefix(kv, prefix) {
-			cur := strings.TrimPrefix(kv, prefix)
-			if cur == "" {
-				env[i] = prefix + dir
-			} else {
-				env[i] = prefix + dir + string(os.PathListSeparator) + cur
-			}
-			return env
-		}
-	}
-	return append(env, prefix+dir)
-}
-
-// Validate checks if the whisper.cpp binary and model are accessible.
-func (w *WhisperCPP) Validate() error {
-	w.resolvePathsIfNeeded()
-
-	if _, err := os.Stat(w.binaryPath); err != nil {
-		return fmt.Errorf("whisper.cpp binary not found: %s", w.binaryPath)
-	}
-	if _, err := os.Stat(w.modelPath); err != nil {
-		return fmt.Errorf("whisper model not found: %s", w.modelPath)
-	}
-	return nil
-}
-
-func (w *WhisperCPP) resolvePathsIfNeeded() {
-	if w == nil {
-		return
-	}
-	if isRunningUnderGoTest() {
-		return
-	}
-
-	binMissing := w.binaryPath == ""
-	if !binMissing {
-		_, err := os.Stat(w.binaryPath)
-		binMissing = err != nil
-	}
-
-	modelMissing := w.modelPath == ""
-	if !modelMissing {
-		_, err := os.Stat(w.modelPath)
-		modelMissing = err != nil
-	}
-
-	if !binMissing && !modelMissing {
-		return
-	}
-
-	resolvedBin, resolvedModel := resolveWhisperBinaryAndModel(w.binaryPath, w.modelPath)
-	if resolvedBin != "" {
-		w.binaryPath = resolvedBin
-	}
-	if resolvedModel != "" {
-		w.modelPath = resolvedModel
-	}
-}
-
-func resolveWhisperBinaryAndModel(configuredBin, configuredModel string) (string, string) {
-	managedBin := "/usr/local/share/whisper-voice-util/whisper.cpp/bin/whisper-cli"
-	managedModel := "/usr/local/share/whisper-voice-util/whisper.cpp/models/ggml-base.en.bin"
-
-	bin := configuredBin
-	if bin == "" || !fileExists(bin) {
-		if fileExists(managedBin) {
-			bin = managedBin
-		}
-	}
-
-	model := configuredModel
-	if model == "" || !fileExists(model) {
-		if fileExists(managedModel) {
-			model = managedModel
-		} else if bin != "" {
-			binDir := filepath.Dir(bin)
-			rel := []string{
-				filepath.Join(binDir, "..", "models", "ggml-base.en.bin"),
-				filepath.Join(binDir, "models", "ggml-base.en.bin"),
-			}
-			for _, c := range rel {
-				if fileExists(c) {
-					model = c
-					break
-				}
-			}
-		}
-	}
-
-	return bin, model
-}
-
-func fileExists(p string) bool {
-	if p == "" {
-		return false
-	}
-	st, err := os.Stat(p)
-	if err != nil {
-		return false
-	}
-	return !st.IsDir()
-}
-
-func isRunningUnderGoTest() bool {
-	// `go test` builds an executable named `<pkg>.test`.
-	// We don't want environment-dependent auto-discovery to change unit test behavior.
-	return strings.HasSuffix(os.Args[0], ".test")
 }
