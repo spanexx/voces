@@ -10,7 +10,7 @@
  *     file lands at the right path and matches the asset size.
  *
  * No real network calls — every test uses httptest.NewServer and
- * WVU_GITHUB_API_BASE to redirect the client to a local URL.
+ * VOCES_GITHUB_API_BASE to redirect the client to a local URL.
  *
  * CID Index:
  * CID:updates-test-001 -> TestLatestRelease_ParsesGitHubResponse
@@ -39,7 +39,7 @@ import (
 
 // withTestServer points the updates package at a local httptest server
 // and returns the server URL. All tests that exercise LatestRelease
-// must call this first (or set WVU_GITHUB_API_BASE themselves).
+// must call this first (or set VOCES_GITHUB_API_BASE themselves).
 // Cleanup is handled via t.Cleanup.
 func withTestServer(t *testing.T, h http.Handler) string {
 	t.Helper()
@@ -66,12 +66,12 @@ type ghRelease struct {
 func TestLatestRelease_ParsesGitHubResponse(t *testing.T) {
 	want := ghRelease{
 		TagName:     "v0.3.1",
-		Name:        "Whisper Voice Utility 0.3.1",
-		HTMLURL:     "https://github.com/spanexx/whisper-voice-util/releases/tag/v0.3.1",
+		Name:        "Voces 0.3.1",
+		HTMLURL:     "https://github.com/spanexx/voces/releases/tag/v0.3.1",
 		PublishedAt: "2026-07-04T10:00:00Z",
 		Body:        "## Notes\n- bug fix",
 		Assets: []Asset{{
-			Name:               "whisper-voice-util-v0.3.1-linux-amd64.tar.gz",
+			Name:               "voces-v0.3.1-linux-amd64.tar.gz",
 			BrowserDownloadURL: "https://example.com/v0.3.1.tar.gz",
 			ContentType:        "application/gzip",
 			Size:               1234567,
@@ -196,9 +196,9 @@ func TestIsNewer_SemverCompare(t *testing.T) {
 func TestPickAsset_LinuxAmd64(t *testing.T) {
 	r := &Release{
 		Assets: []Asset{
-			{Name: "whisper-voice-util-v0.2.0-darwin-amd64.tar.gz"},
-			{Name: "whisper-voice-util-v0.2.0-windows-amd64.zip"},
-			{Name: "whisper-voice-util-v0.2.0-linux-amd64.tar.gz"},
+			{Name: "voces-v0.2.0-darwin-amd64.tar.gz"},
+			{Name: "voces-v0.2.0-windows-amd64.zip"},
+			{Name: "voces-v0.2.0-linux-amd64.tar.gz"},
 			{Name: "source.tar.gz"},
 		},
 	}
@@ -206,7 +206,7 @@ func TestPickAsset_LinuxAmd64(t *testing.T) {
 	if got == nil {
 		t.Fatal("PickAsset returned nil; expected the linux/amd64 tarball")
 	}
-	if got.Name != "whisper-voice-util-v0.2.0-linux-amd64.tar.gz" {
+	if got.Name != "voces-v0.2.0-linux-amd64.tar.gz" {
 		t.Errorf("got %q, want linux-amd64 tarball", got.Name)
 	}
 }
@@ -216,7 +216,7 @@ func TestPickAsset_LinuxAmd64(t *testing.T) {
 func TestPickAsset_NoMatch(t *testing.T) {
 	r := &Release{
 		Assets: []Asset{
-			{Name: "whisper-voice-util-v0.2.0-darwin-amd64.tar.gz"},
+			{Name: "voces-v0.2.0-darwin-amd64.tar.gz"},
 		},
 	}
 	if got := r.PickAsset("linux", "amd64"); got != nil {
@@ -231,7 +231,7 @@ func TestPickAsset_NoMatch(t *testing.T) {
 func TestDownload_WritesToStagedPath(t *testing.T) {
 	const payload = "fake-tarball-contents-1234567890"
 	asset := Asset{
-		Name:               "whisper-voice-util-v0.2.0-linux-amd64.tar.gz",
+		Name:               "voces-v0.2.0-linux-amd64.tar.gz",
 		BrowserDownloadURL: "", // set after server start
 		ContentType:        "application/gzip",
 		Size:               int64(len(payload)),
@@ -246,7 +246,7 @@ func TestDownload_WritesToStagedPath(t *testing.T) {
 	asset.BrowserDownloadURL = os.Getenv(envBaseURL) + "/v0.2.0.tar.gz"
 	r := &Release{TagName: "v0.2.0", Assets: []Asset{asset}}
 
-	dest := filepath.Join(t.TempDir(), "whisper-voice-util")
+	dest := filepath.Join(t.TempDir(), "voces")
 	staged, err := r.Download(context.Background(), dest)
 	if err != nil {
 		t.Fatalf("Download: %v", err)

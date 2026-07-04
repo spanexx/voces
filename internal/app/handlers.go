@@ -15,9 +15,9 @@ import (
 	"log"
 	"time"
 
-	"whisper-voice-util/internal/audio"
-	"whisper-voice-util/internal/hotkey"
-	"whisper-voice-util/internal/tray"
+	"voces/internal/audio"
+	"voces/internal/hotkey"
+	"voces/internal/tray"
 )
 
 // CID:app-handlers-001 - buildTrayHandlers

@@ -1,6 +1,6 @@
-# Whisper Voice Utility
+# Voces
 
-Whisper Voice Utility is a Linux desktop application that provides system-wide push-to-talk voice transcription and Text-to-Speech (TTS) capabilities. It integrates deeply with X11/Wayland to listen for global hotkeys, record your microphone, transcribe your speech using local or cloud AI models, and automatically type the transcribed text into any active window.
+Voces is a Linux desktop application that provides system-wide push-to-talk voice transcription and Text-to-Speech (TTS) capabilities. It integrates deeply with X11/Wayland to listen for global hotkeys, record your microphone, transcribe your speech using local or cloud AI models, and automatically type the transcribed text into any active window.
 
 ## Features
 
@@ -26,14 +26,14 @@ Works on any Debian-family Linux distribution (Ubuntu, Pop!_OS, Linux Mint, elem
 curl -fsSL https://github.com/spanexx/voces/releases/latest/download/install.sh | bash
 ```
 
-That's it. The script downloads the latest tarball, extracts it to `/opt/whisper-voice-util/`, runs `install-deps.sh` to install the system libraries, links the binaries into your `$PATH`, and adds an app-menu entry. When it finishes, type `whisper-voice-util` (or click the menu entry) — the setup wizard will open on first launch.
+That's it. The script downloads the latest tarball, extracts it to `/opt/voces/`, runs `install-deps.sh` to install the system libraries, links the binaries into your `$PATH`, and adds an app-menu entry. When it finishes, type `voces` (or click the menu entry) — the setup wizard will open on first launch.
 
 To uninstall:
 
 ```bash
-sudo rm -rf /opt/whisper-voice-util
-sudo rm -f /usr/local/bin/whisper-voice-util /usr/local/bin/whisper-voice-overlay
-sudo rm -f /usr/local/share/applications/whisper-voice-util.desktop
+sudo rm -rf /opt/voces
+sudo rm -f /usr/local/bin/voces /usr/local/bin/voces-overlay
+sudo rm -f /usr/local/share/applications/voces.desktop
 ```
 
 ### Manual install
@@ -42,19 +42,19 @@ If you'd rather see what runs (or you're on a non-Debian distro), the manual pat
 
 ### 1. Download the latest release
 
-Grab `whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz` from the [GitHub Releases page](https://github.com/spanexx/voces/releases). Place it anywhere — your home directory is fine.
+Grab `voces-vX.Y.Z-linux-amd64.tar.gz` from the [GitHub Releases page](https://github.com/spanexx/voces/releases). Place it anywhere — your home directory is fine.
 
 ### 2. Extract
 
 ```bash
-tar xzf whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz
-cd whisper-voice-util-vX.Y.Z
+tar xzf voces-vX.Y.Z-linux-amd64.tar.gz
+cd voces-vX.Y.Z
 ```
 
 You will see:
 ```
-whisper-voice-util          # the main binary
-whisper-voice-overlay       # the recording indicator window
+voces          # the main binary
+voces-overlay       # the recording indicator window
 engines/                    # bundled whisper.cpp (+ piper if the build succeeded)
 README.md
 USAGE.md
@@ -76,7 +76,7 @@ It detects your distro, prepends `sudo` if you're not root, skips already-instal
 ### 4. Run
 
 ```bash
-./whisper-voice-util
+./voces
 ```
 
 The first launch detects that no setup state exists and opens the **setup wizard** — a small GTK window that walks you through:
@@ -92,7 +92,7 @@ After the wizard finishes, the system tray icon appears and the App is ready. Ho
 
 ### 5. (Optional) Install globally
 
-If you'd like `whisper-voice-util` on your `$PATH` and a desktop file in your app menu, run `sudo make install` from the extracted directory. Use `sudo make uninstall` to remove.
+If you'd like `voces` on your `$PATH` and a desktop file in your app menu, run `sudo make install` from the extracted directory. Use `sudo make uninstall` to remove.
 
 ## Building from source
 
@@ -104,17 +104,17 @@ cd voces
 make build                  # builds the two Go binaries
 make whispercpp-build       # compiles the vendored whisper.cpp
 sudo ./scripts/install-deps.sh   # same as the tarball step
-./bin/whisper-voice-util
+./bin/voces
 ```
 
-`make release VERSION=v0.2.0` produces a release tarball at `builds/whisper-voice-util-v0.2.0-linux-amd64.tar.gz`. This is what gets uploaded to GitHub Releases.
+`make release VERSION=v0.2.0` produces a release tarball at `builds/voces-v0.2.0-linux-amd64.tar.gz`. This is what gets uploaded to GitHub Releases.
 
 ## Configuration
 
 On first launch, the App runs the **setup wizard**, which writes two files:
 
-- `~/.local/share/whisper-voice-util/state.json` — tracks the wizard version, your language, model choice, hotkey. The wizard re-runs when this file is missing or the App version has changed.
-- `$XDG_CONFIG_HOME/whisper-voice-util/config.yaml` — the engine paths, model paths, API keys, hotkeys, and behavior flags. You can edit this by hand; the next "Run setup again..." from the tray will regenerate it.
+- `~/.local/share/voces/state.json` — tracks the wizard version, your language, model choice, hotkey. The wizard re-runs when this file is missing or the App version has changed.
+- `$XDG_CONFIG_HOME/voces/config.yaml` — the engine paths, model paths, API keys, hotkeys, and behavior flags. You can edit this by hand; the next "Run setup again..." from the tray will regenerate it.
 
 A `config.yaml.example` is shipped in the tarball for reference. All engine paths are **placeholders** — the wizard fills them in based on where it downloaded the model files and where the bundled engines live.
 
@@ -140,7 +140,7 @@ Right-click the microphone icon in your tray to:
 - Manually select transcription / TTS engines.
 - **Run setup again...** — re-launch the wizard (new window).
 - **Check for updates** — query GitHub Releases; shows a notification on result.
-- **Open App-managed folder** — opens `~/.local/share/whisper-voice-util/` in your file manager.
+- **Open App-managed folder** — opens `~/.local/share/voces/` in your file manager.
 - **Open Config** — opens `config.yaml` in your default editor.
 - **View Logs** — opens the log file.
 - Enable/Disable "Start on Login".
@@ -153,7 +153,7 @@ Right-click the microphone icon in your tray to:
 The wizard downloads the AI model files from HuggingFace. If the download fails:
 - Check your internet connection. The downloads are 141 MB (base model) to 466 MB (small model).
 - Check that `engines/models.json` exists in the tarball directory. If missing, your extraction may have been incomplete.
-- Look at the log file (`$XDG_CONFIG_HOME/whisper-voice-util/logs/whisper-voice-util.log`) for the specific HTTP error.
+- Look at the log file (`$XDG_CONFIG_HOME/voces/logs/voces.log`) for the specific HTTP error.
 - You can re-run the wizard from the tray menu to retry the download.
 
 ### "The wizard doesn't appear"

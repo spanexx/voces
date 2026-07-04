@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // TestTranscribe_WhisperCPP_BinaryNotFound tests transcribe with missing binary

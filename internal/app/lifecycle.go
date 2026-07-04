@@ -19,21 +19,21 @@ import (
 	"os/signal"
 	"syscall"
 
-	"whisper-voice-util/internal/audio"
-	"whisper-voice-util/internal/config"
-	"whisper-voice-util/internal/hotkey"
-	"whisper-voice-util/internal/input"
-	"whisper-voice-util/internal/notify"
-	"whisper-voice-util/internal/overlay"
-	"whisper-voice-util/internal/transcription"
-	"whisper-voice-util/internal/tray"
-	"whisper-voice-util/internal/tts"
+	"voces/internal/audio"
+	"voces/internal/config"
+	"voces/internal/hotkey"
+	"voces/internal/input"
+	"voces/internal/notify"
+	"voces/internal/overlay"
+	"voces/internal/transcription"
+	"voces/internal/tray"
+	"voces/internal/tts"
 )
 
 // CID:app-lifecycle-001 - New
 // Purpose: Bootstraps the application, loads configuration, and initializes all modules.
 func New() (*Application, error) {
-	log.Println("Initializing Whisper Voice Utility...")
+	log.Println("Initializing Voces...")
 
 	// 1. Single Instance Lock
 	cleanupLock, err := CheckAndLockSingleInstance()
@@ -101,7 +101,7 @@ func (a *Application) Run() {
 		a.Notifier.Error("Hotkeys Disabled", err.Error())
 	}
 
-	a.Notifier.Info("Whisper Voice Utility Ready", "Application is running in the background.")
+	a.Notifier.Info("Voces Ready", "Application is running in the background.")
 
 	// Capture OS signals for graceful termination (Ctrl+C, kill).
 	// Started before the tray so a SIGTERM during systray init
@@ -138,9 +138,9 @@ func (a *Application) Run() {
 
 // shutdown reverses the initialization and cleans up locks/routines.
 func (a *Application) shutdown() {
-	log.Println("Shutting down Whisper Voice Utility...")
+	log.Println("Shutting down Voces...")
 
-	a.Notifier.Info("Shutting Down", "Exiting Whisper Voice Utility")
+	a.Notifier.Info("Shutting Down", "Exiting Voces")
 
 	// 1. Stop background inputs
 	a.Hotkeys.Stop()

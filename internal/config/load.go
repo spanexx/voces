@@ -39,7 +39,7 @@ func Load() (*Config, error) {
 
 	// 1. User config directory (XDG spec)
 	if configDir, err := os.UserConfigDir(); err == nil {
-		v.AddConfigPath(filepath.Join(configDir, "whisper-voice-util"))
+		v.AddConfigPath(filepath.Join(configDir, "voces"))
 		// Tests and some dev workflows historically place config.yaml directly in XDG_CONFIG_HOME.
 		// Keep that working under go test only.
 		if isRunningUnderGoTest() {

@@ -1,7 +1,7 @@
 #!/bin/bash
-# build-release.sh — Build the whisper-voice-util release tarball.
+# build-release.sh — Build the voces release tarball.
 #
-# IMPL §8: produces builds/whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz
+# IMPL §8: produces builds/voces-vX.Y.Z-linux-amd64.tar.gz
 # containing both Go binaries + bundled engines + docs + install-deps.sh.
 #
 # Usage:
@@ -9,9 +9,9 @@
 #   scripts/build-release.sh v0.2.0-rc1
 #
 # Layout produced (matches ADR-0001):
-#   whisper-voice-util-vX.Y.Z/
-#     whisper-voice-util          # Go binary (uses -ldflags for Version)
-#     whisper-voice-overlay       # Go binary (overlay window)
+#   voces-vX.Y.Z/
+#     voces          # Go binary (uses -ldflags for Version)
+#     voces-overlay       # Go binary (overlay window)
 #     engines/
 #       whisper-cli               # from vendor/whisper.cpp/build/bin/
 #       piper                     # from vendor/piper/build/ (if built)
@@ -46,7 +46,7 @@ fi
 
 OS="linux"
 ARCH="amd64"
-APP_NAME="whisper-voice-util"
+APP_NAME="voces"
 BUILD_DIR="builds"
 RELEASE_DIR="${BUILD_DIR}/${APP_NAME}-${VERSION}"
 TAR_NAME="${APP_NAME}-${VERSION}-${OS}-${ARCH}.tar.gz"
@@ -63,20 +63,20 @@ mkdir -p "${RELEASE_DIR}/engines"
 #
 # -s -w      : strip debug info (smaller binary)
 # -X main.Version=$VERSION : inject the version string into the
-#              `var Version = "dev"` placeholder in cmd/whisper-voice-util/main.go.
-#              The same ldflags pattern should be applied to whisper-voice-overlay
+#              `var Version = "dev"` placeholder in cmd/voces/main.go.
+#              The same ldflags pattern should be applied to voces-overlay
 #              once it has a Version var.
 LDFLAGS="-s -w -X main.Version=${VERSION}"
 
 echo "🔨 Building Go binaries (Version=${VERSION})..."
 mkdir -p bin
 go build -mod=vendor -ldflags="${LDFLAGS}" -o "${RELEASE_DIR}/${APP_NAME}"           ./cmd/${APP_NAME}
-go build -mod=vendor -ldflags="${LDFLAGS}" -o "${RELEASE_DIR}/whisper-voice-overlay"  ./cmd/whisper-voice-overlay
+go build -mod=vendor -ldflags="${LDFLAGS}" -o "${RELEASE_DIR}/voces-overlay"  ./cmd/voces-overlay
 # Keep the same artifacts in bin/ for `make install` to use.
 cp "${RELEASE_DIR}/${APP_NAME}"            bin/${APP_NAME}
-cp "${RELEASE_DIR}/whisper-voice-overlay"  bin/whisper-voice-overlay
+cp "${RELEASE_DIR}/voces-overlay"  bin/voces-overlay
 
-for f in "${RELEASE_DIR}/${APP_NAME}" "${RELEASE_DIR}/whisper-voice-overlay"; do
+for f in "${RELEASE_DIR}/${APP_NAME}" "${RELEASE_DIR}/voces-overlay"; do
     if [[ ! -f "$f" ]]; then
         echo "❌ Build failed: $f not produced" >&2
         exit 1

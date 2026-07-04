@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"whisper-voice-util/internal/download"
+	"voces/internal/download"
 )
 
 // fakeModelServer serves a configurable payload at each path. Returns
@@ -158,7 +158,7 @@ func TestEnsureModels_SkipsPiperWhenNotEnabled(t *testing.T) {
 		t.Errorf("whisper model missing: %v", err)
 	}
 	// Piper dir either absent or empty (no .onnx file).
-	piperDir := filepath.Join(os.Getenv("XDG_DATA_HOME"), "whisper-voice-util", "models", "piper")
+	piperDir := filepath.Join(os.Getenv("XDG_DATA_HOME"), "voces", "models", "piper")
 	if entries, err := os.ReadDir(piperDir); err == nil {
 		for _, e := range entries {
 			if filepath.Ext(e.Name()) == ".onnx" {

@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // CID:transcription-openai-001 - OpenAIAPI

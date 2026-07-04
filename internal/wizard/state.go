@@ -11,7 +11,7 @@
 package wizard
 
 import (
-	"whisper-voice-util/internal/setup"
+	"voces/internal/setup"
 )
 
 // CID:wizard-state-001 - State

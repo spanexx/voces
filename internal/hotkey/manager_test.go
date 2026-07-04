@@ -2,7 +2,7 @@ package hotkey
 
 import (
 	"testing"
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 func TestManager_Lifecycle(t *testing.T) {

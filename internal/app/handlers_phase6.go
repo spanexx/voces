@@ -24,7 +24,7 @@ import (
 	"os/exec"
 	"time"
 
-	"whisper-voice-util/internal/paths"
+	"voces/internal/paths"
 )
 
 // CID:app-handlers-phase6-001 - runSetupSubprocess
@@ -45,7 +45,7 @@ func (a *Application) runSetupSubprocess() {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, exe, "--wizard-only")
-	cmd.Env = os.Environ() // inherit XDG_*, WVU_*, DISPLAY, etc.
+	cmd.Env = os.Environ() // inherit XDG_*, VOCES_*, DISPLAY, etc.
 	var tail bytes.Buffer
 	cmd.Stdout = &tail
 	cmd.Stderr = &tail

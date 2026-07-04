@@ -25,7 +25,7 @@ import (
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 
-	"whisper-voice-util/internal/setup"
+	"voces/internal/setup"
 )
 
 // CID:wizard-hotstep-002 - presetLabels

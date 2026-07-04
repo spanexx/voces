@@ -1,4 +1,4 @@
-// Package main provides the entry point for the Whisper Voice Utility.
+// Package main provides the entry point for the Voces.
 package main
 
 import (
@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 func TestMainFunction(t *testing.T) {
@@ -53,7 +53,7 @@ behavior:
   notifications: true
 `
 	// Path for XDG config
-	configDir := filepath.Join(tmpDir, "whisper-voice-util")
+	configDir := filepath.Join(tmpDir, "voces")
 	os.MkdirAll(configDir, 0755)
 	configPath := filepath.Join(configDir, "config.yaml")
 
@@ -143,7 +143,7 @@ behavior:
   sound_on_end: false
   notifications: true
 `
-	configDir := filepath.Join(tmpDir, "whisper-voice-util")
+	configDir := filepath.Join(tmpDir, "voces")
 	os.MkdirAll(configDir, 0755)
 	configPath := filepath.Join(configDir, "config.yaml")
 	os.WriteFile(configPath, []byte(configContent), 0o644)

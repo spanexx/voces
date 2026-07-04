@@ -1,5 +1,5 @@
 #!/bin/bash
-# install-deps.sh — install runtime system dependencies for whisper-voice-util.
+# install-deps.sh — install runtime system dependencies for voces.
 #
 # Installs the libraries the App needs to run on a fresh Linux box:
 #   - GTK 3 runtime (wizard window, tray menu)
@@ -98,5 +98,5 @@ fi
 echo ""
 echo "✅ Dependencies installed successfully."
 echo ""
-echo "Next: extract the tarball (or build from source) and run ./whisper-voice-util."
+echo "Next: extract the tarball (or build from source) and run ./voces."
 echo "On first run, the setup wizard will offer to download the AI model files."

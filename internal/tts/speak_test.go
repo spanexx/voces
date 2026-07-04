@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // TestSpeak_Piper_BinaryNotFound tests Piper.Speak with missing binary

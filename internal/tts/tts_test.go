@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 func TestNewTTS(t *testing.T) {

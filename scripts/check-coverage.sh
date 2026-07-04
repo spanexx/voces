@@ -11,7 +11,7 @@
 #
 #   The excluded packages are:
 #     - assets/icons                 (go:generate, embeds PNGs)
-#     - cmd/whisper-voice-overlay    (main binary, requires display)
+#     - cmd/voces-overlay    (main binary, requires display)
 #     - internal/overlay             (GTK window)
 #     - internal/wizard              (GTK wizard orchestrator)
 #     - internal/wizard/steps        (GTK step widgets)
@@ -30,7 +30,7 @@ if [ -z "$TEST_FILES" ]; then
 fi
 
 # Build the package list, excluding the GTK-only whitelist
-COVERAGE_EXCLUDE='whisper-voice-util/assets/icons|whisper-voice-util/cmd/whisper-voice-overlay|whisper-voice-util/internal/overlay|whisper-voice-util/internal/wizard'
+COVERAGE_EXCLUDE='voces/assets/icons|voces/cmd/voces-overlay|voces/internal/overlay|voces/internal/wizard'
 PKGS=$(go list -mod=vendor ./... 2>/dev/null | grep -vE "$COVERAGE_EXCLUDE" || true)
 
 if [ -z "$PKGS" ]; then

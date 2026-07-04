@@ -3,7 +3,7 @@ package transcription
 import (
 	"testing"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // TestTranscribe_Integration tests the full transcribe flow

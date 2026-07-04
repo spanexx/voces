@@ -101,5 +101,5 @@ func (m *Manager) ViewLogs(title, body string) {
 		Urgency: notify.UrgencyNormal,
 	})
 	// Automatically open the logs without requiring a click action
-	exec.Command("xdg-open", filepath.Join("logs", "whisper-voice-util.log")).Start()
+	exec.Command("xdg-open", filepath.Join("logs", "voces.log")).Start()
 }

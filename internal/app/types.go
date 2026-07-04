@@ -15,16 +15,16 @@ import (
 	"context"
 	"sync"
 
-	"whisper-voice-util/internal/audio"
-	"whisper-voice-util/internal/config"
-	"whisper-voice-util/internal/hotkey"
-	"whisper-voice-util/internal/input"
-	"whisper-voice-util/internal/notify"
-	"whisper-voice-util/internal/overlay"
-	"whisper-voice-util/internal/transcription"
-	"whisper-voice-util/internal/tray"
-	"whisper-voice-util/internal/tts"
-	"whisper-voice-util/internal/updates"
+	"voces/internal/audio"
+	"voces/internal/config"
+	"voces/internal/hotkey"
+	"voces/internal/input"
+	"voces/internal/notify"
+	"voces/internal/overlay"
+	"voces/internal/transcription"
+	"voces/internal/tray"
+	"voces/internal/tts"
+	"voces/internal/updates"
 )
 
 // CID:app-types-001 - Application

@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"whisper-voice-util/internal/download"
+	"voces/internal/download"
 )
 
 // updateFileSuffix is appended to the destination path for the
@@ -43,7 +43,7 @@ const downloadTimeout = 5 * time.Minute
 //
 // Naming convention documented in Phase 8 (build pipeline):
 //
-//	whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz
+//	voces-vX.Y.Z-linux-amd64.tar.gz
 func (r *Release) PickAsset(goos, goarch string) *Asset {
 	if r == nil {
 		return nil

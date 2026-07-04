@@ -16,8 +16,8 @@ import (
 	"context"
 	"fmt"
 
-	"whisper-voice-util/internal/download"
-	"whisper-voice-util/internal/paths"
+	"voces/internal/download"
+	"voces/internal/paths"
 )
 
 // CID:setup-ensure-001 - EnsureModels

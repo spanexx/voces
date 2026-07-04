@@ -14,7 +14,7 @@
  * CID:overlay-bin-002 -> positionBottomCenter
  * CID:overlay-bin-003 -> roundedRect
  *
- * Quick lookup: rg -n "CID:overlay-bin-" cmd/whisper-voice-overlay/main.go
+ * Quick lookup: rg -n "CID:overlay-bin-" cmd/voces-overlay/main.go
  */
 package main
 

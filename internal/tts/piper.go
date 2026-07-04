@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	"whisper-voice-util/internal/audio"
-	"whisper-voice-util/internal/config"
+	"voces/internal/audio"
+	"voces/internal/config"
 )
 
 // CID:tts-piper-001 - Piper

@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Whisper Voice Utility
+Name=Voces
 Comment=Push-to-talk voice transcription and TTS. First launch opens a setup wizard to choose your language, model, and hotkey.
-Exec=whisper-voice-util
-Icon=whisper-voice-util
+Exec=voces
+Icon=voces
 Terminal=false
 Categories=Utility;AudioVideo;
 Keywords=voice;transcription;tts;whisper;

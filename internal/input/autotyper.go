@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // AutoTyper orchestrates keyboard typing with clipboard-paste fallback.

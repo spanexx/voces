@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 func TestWhisperCPP_Integration(t *testing.T) {

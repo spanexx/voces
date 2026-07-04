@@ -8,7 +8,7 @@
  *   - Application.SetVersion: empty / "dev" handling.
  *   - Application.LatestRelease: thread-safe read/write round-trip.
  *
- * Tests use httptest.NewServer and WVU_GITHUB_API_BASE to redirect
+ * Tests use httptest.NewServer and VOCES_GITHUB_API_BASE to redirect
  * the GitHub client at a local URL. No real network calls.
  *
  * CID Index:
@@ -32,9 +32,9 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"whisper-voice-util/internal/config"
-	"whisper-voice-util/internal/notify"
-	"whisper-voice-util/internal/updates"
+	"voces/internal/config"
+	"voces/internal/notify"
+	"voces/internal/updates"
 )
 
 // buildMinimalApp creates an Application with just enough wiring to
@@ -62,13 +62,13 @@ func fakeGitHubHandler(t *testing.T, rel interface{}) http.Handler {
 }
 
 // withFakeGitHub points updates.LatestRelease at a local httptest
-// server. The WVU_GITHUB_API_BASE override is what the package
+// server. The VOCES_GITHUB_API_BASE override is what the package
 // reads; t.Setenv restores the previous value on test cleanup.
 func withFakeGitHub(t *testing.T, h http.Handler) {
 	t.Helper()
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
-	t.Setenv("WVU_GITHUB_API_BASE", srv.URL)
+	t.Setenv("VOCES_GITHUB_API_BASE", srv.URL)
 }
 
 // ghReleaseBody is a minimal but realistic GitHub release body for

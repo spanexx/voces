@@ -17,7 +17,7 @@ func setupTestEnvironment(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 
-	cfgDir := filepath.Join(dir, "whisper-voice-util")
+	cfgDir := filepath.Join(dir, "voces")
 	err := os.MkdirAll(cfgDir, 0o755)
 	if err != nil {
 		t.Fatalf("Failed to create config dir: %v", err)
@@ -42,7 +42,7 @@ behavior:
 		t.Fatalf("Failed to write test config: %v", err)
 	}
 
-	lockFilePath = filepath.Join(dir, "whisper-voice-util.lock")
+	lockFilePath = filepath.Join(dir, "voces.lock")
 
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	return dir

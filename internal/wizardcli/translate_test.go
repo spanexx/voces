@@ -13,8 +13,8 @@ package wizardcli
 import (
 	"testing"
 
-	"whisper-voice-util/internal/setup"
-	"whisper-voice-util/internal/wizard"
+	"voces/internal/setup"
+	"voces/internal/wizard"
 )
 
 // TestStateFromWizard_EnglishRoutesToSmallEn: en → ggml-small.en.bin

@@ -20,8 +20,8 @@ import (
 	"net/http"
 	"time"
 
-	"whisper-voice-util/internal/audio"
-	"whisper-voice-util/internal/config"
+	"voces/internal/audio"
+	"voces/internal/config"
 )
 
 // CID:tts-elevenlabs-001 - ElevenLabs

@@ -583,7 +583,7 @@ func TestSave_ValidConfig(t *testing.T) {
 
 	// Save writes config.yaml next to the running test binary.
 	configDir, _ := os.UserConfigDir()
-	configPath := filepath.Join(configDir, "whisper-voice-util", "config.yaml")
+	configPath := filepath.Join(configDir, "voces", "config.yaml")
 	_ = os.Remove(configPath)
 
 	if err := Save(cfg); err != nil {

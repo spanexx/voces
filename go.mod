@@ -1,4 +1,4 @@
-module whisper-voice-util
+module voces
 
 go 1.25.0
 

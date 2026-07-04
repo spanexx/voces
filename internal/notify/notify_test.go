@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 
 	"github.com/esiqveland/notify"
 )

@@ -16,7 +16,7 @@ package tray
 import (
 	"sync"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 
 	"github.com/getlantern/systray"
 )
@@ -80,7 +80,7 @@ func (m *Manager) SetState(state State, message string) {
 	defer m.mu.Unlock()
 
 	m.state = state
-	tooltip := "Whisper Voice Utility - " + state.String()
+	tooltip := "Voces - " + state.String()
 	if message != "" {
 		tooltip += ": " + message
 	}

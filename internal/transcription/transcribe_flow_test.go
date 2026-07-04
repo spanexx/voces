@@ -3,7 +3,7 @@ package transcription
 import (
 	"testing"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // TestWhisperCPP_Transcribe_WithValidPaths tests the full transcribe flow

@@ -17,7 +17,7 @@ import (
 	"syscall"
 )
 
-var lockFilePath = "/tmp/whisper-voice-util.lock"
+var lockFilePath = "/tmp/voces.lock"
 
 // CID:app-instance-001 - CheckAndLockSingleInstance
 // Purpose: Employs a lock file to ensure only one instance of the utility is active.

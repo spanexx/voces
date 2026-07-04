@@ -19,7 +19,7 @@ package transcription
 import (
 	"fmt"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // CID:transcription-manager-001 - Transcriber

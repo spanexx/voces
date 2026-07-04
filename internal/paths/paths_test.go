@@ -81,7 +81,7 @@ func TestPiperVoicePath_AppendsOnnx(t *testing.T) {
 	}
 }
 
-// TestEnginesDir_EnvOverride verifies $WVU_ENGINES_DIR wins when set.
+// TestEnginesDir_EnvOverride verifies $VOCES_ENGINES_DIR wins when set.
 func TestEnginesDir_EnvOverride(t *testing.T) {
 	tmp := t.TempDir()
 	if err := os.MkdirAll(tmp, 0o755); err != nil {
@@ -97,7 +97,7 @@ func TestEnginesDir_EnvOverride(t *testing.T) {
 	}
 }
 
-// TestEnginesDir_BinSiblingLayout verifies <root>/bin/whisper-voice-util
+// TestEnginesDir_BinSiblingLayout verifies <root>/bin/voces
 // resolves to <root>/engines.
 func TestEnginesDir_BinSiblingLayout(t *testing.T) {
 	root := t.TempDir()
@@ -111,9 +111,9 @@ func TestEnginesDir_BinSiblingLayout(t *testing.T) {
 	}
 	t.Setenv(enginesEnvVar, "") // disable override
 
-	// Simulate the binary living at <root>/bin/whisper-voice-util by
+	// Simulate the binary living at <root>/bin/voces by
 	// passing that fake path to the testable helper.
-	fakeBin := filepath.Join(bin, "whisper-voice-util")
+	fakeBin := filepath.Join(bin, "voces")
 	if err := os.WriteFile(fakeBin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}

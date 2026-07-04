@@ -19,7 +19,7 @@ const (
 	windowWidth  = 480
 	windowHeight = 420
 	// windowTitle is shown in the title bar. The em-dash is U+2014.
-	windowTitle = "Whisper Voice Utility — Setup"
+	windowTitle = "Voces — Setup"
 	// borderPadding is the inner margin around the step content.
 	borderPadding = 16
 )

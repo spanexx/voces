@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"whisper-voice-util/internal/updates"
+	"voces/internal/updates"
 )
 
 // autoCheckDelay is the time we wait after Run() before kicking off

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"whisper-voice-util/internal/config"
-	"whisper-voice-util/internal/notify"
+	"voces/internal/config"
+	"voces/internal/notify"
 )
 
 func TestApplication_Lifecycle(t *testing.T) {

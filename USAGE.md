@@ -1,6 +1,6 @@
-# Whisper Voice Utility
+# Voces
 
-Whisper Voice Utility is a tool that lets you talk into your computer and have it type out what you say. It can also read text back to you using computer voices.
+Voces is a tool that lets you talk into your computer and have it type out what you say. It can also read text back to you using computer voices.
 
 ---
 
@@ -8,7 +8,7 @@ Whisper Voice Utility is a tool that lets you talk into your computer and have i
 
 ### 1. Get the Software
 You can either download a ready-to-use version or build it yourself:
-*   **Ready-to-use:** Look for the file `whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz` in the [GitHub Releases page](https://github.com/spanexx/voces/releases) for the latest version. Extract it anywhere you like.
+*   **Ready-to-use:** Look for the file `voces-vX.Y.Z-linux-amd64.tar.gz` in the [GitHub Releases page](https://github.com/spanexx/voces/releases) for the latest version. Extract it anywhere you like.
 *   **Build from scratch:** If you have the code, just open a terminal and type:
     ```bash
     make build
@@ -44,9 +44,9 @@ If you want the program to work without the internet, you'll need the "brains" (
 ## 🛠️ How to Use
 
 ### Starting the Program
-Find the `whisper-voice-util` file and double-click it, or run it from the terminal:
+Find the `voces` file and double-click it, or run it from the terminal:
 ```bash
-./bin/whisper-voice-util
+./bin/voces
 ```
 
 ### Talking to Type

@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // CID:transcription-whisper-001 - WhisperCPP

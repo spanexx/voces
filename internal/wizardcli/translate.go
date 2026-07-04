@@ -19,8 +19,8 @@
 package wizardcli
 
 import (
-	"whisper-voice-util/internal/setup"
-	"whisper-voice-util/internal/wizard"
+	"voces/internal/setup"
+	"voces/internal/wizard"
 )
 
 // whisperEnglishModel and whisperMultilingualModel are the file names

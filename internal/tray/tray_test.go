@@ -2,7 +2,7 @@ package tray
 
 import (
 	"testing"
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 func TestManager_NewAndState(t *testing.T) {

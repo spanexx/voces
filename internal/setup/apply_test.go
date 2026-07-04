@@ -56,8 +56,8 @@ func TestApply_WritesStateAndConfig(t *testing.T) {
 	}
 	_ = statePath
 
-	// config.yaml must exist at $XDG_CONFIG_HOME/whisper-voice-util/config.yaml
-	configPath := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "whisper-voice-util", "config.yaml")
+	// config.yaml must exist at $XDG_CONFIG_HOME/voces/config.yaml
+	configPath := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "voces", "config.yaml")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		t.Fatalf("config.yaml missing at %q: %v", configPath, err)
@@ -84,7 +84,7 @@ func TestApply_PreservesExistingBinaryPaths(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", cfgDir)
 
 	// Pre-write a config.yaml with custom binary paths.
-	appCfgDir := filepath.Join(cfgDir, "whisper-voice-util")
+	appCfgDir := filepath.Join(cfgDir, "voces")
 	if err := os.MkdirAll(appCfgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func whisperModelPathForTest(name string) (string, error) {
 	if data == "" {
 		return "", os.ErrNotExist
 	}
-	return filepath.Join(data, "whisper-voice-util", "models", "whisper", name), nil
+	return filepath.Join(data, "voces", "models", "whisper", name), nil
 }
 
 // piperVoicePathForTest returns the canonical path a downloaded piper
@@ -175,5 +175,5 @@ func piperVoicePathForTest(base string) (string, error) {
 	if data == "" {
 		return "", os.ErrNotExist
 	}
-	return filepath.Join(data, "whisper-voice-util", "models", "piper", base+".onnx"), nil
+	return filepath.Join(data, "voces", "models", "piper", base+".onnx"), nil
 }

@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	"whisper-voice-util/internal/download"
+	"voces/internal/download"
 )
 
 // TestEnsureModels_RealDownload_HappyPath pulls ggml-base.bin (the
@@ -121,7 +121,7 @@ func TestEnsureModels_RealDownload_HappyPath(t *testing.T) {
 	}
 
 	// config.yaml at the canonical XDG_CONFIG_HOME path.
-	cfgPath := fmt.Sprintf("%s/whisper-voice-util/config.yaml", cfgDir)
+	cfgPath := fmt.Sprintf("%s/voces/config.yaml", cfgDir)
 	if _, err := os.Stat(cfgPath); err != nil {
 		t.Errorf("config.yaml missing at %q: %v", cfgPath, err)
 	}

@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"whisper-voice-util/internal/config"
-	"whisper-voice-util/internal/input"
+	"voces/internal/config"
+	"voces/internal/input"
 
 	"github.com/esiqveland/notify"
 	"github.com/godbus/dbus/v5"
@@ -158,7 +158,7 @@ func (m *Manager) dispatch(msg Message) {
 	}
 
 	n := notify.Notification{
-		AppName:       "Whisper Voice Utility",
+		AppName:       "Voces",
 		Summary:       msg.Title,
 		Body:          msg.Body,
 		AppIcon:       iconName,

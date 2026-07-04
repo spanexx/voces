@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 func TestNewTranscriber(t *testing.T) {

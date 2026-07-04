@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // TestPiper_Speak_WithAllFilesMissing tests Piper.Speak when all required files are missing

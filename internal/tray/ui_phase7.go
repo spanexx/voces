@@ -25,7 +25,7 @@ package tray
 import (
 	"log"
 
-	"whisper-voice-util/internal/updates"
+	"voces/internal/updates"
 
 	"github.com/getlantern/systray"
 )

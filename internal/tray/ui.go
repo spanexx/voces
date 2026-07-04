@@ -59,8 +59,8 @@ func (m *Manager) UpdateTTSEngine(engine string) {
 // Purpose: Entry point for systray initialization. Builds all menu items and attaches event loops.
 func (m *Manager) onReady() {
 	systray.SetIcon(IconIdle)
-	systray.SetTitle("Whisper Voice Utility")
-	systray.SetTooltip("Whisper Voice Utility - Ready")
+	systray.SetTitle("Voces")
+	systray.SetTooltip("Voces - Ready")
 
 	// Phase 7 — dynamic "Update available" item at the top of the
 	// menu. Hidden until SetUpdateBadge is called with a newer
@@ -234,13 +234,13 @@ func resolveConfigPath() string {
 	if err != nil {
 		return "config.yaml"
 	}
-	return filepath.Join(configDir, "whisper-voice-util", "config.yaml")
+	return filepath.Join(configDir, "voces", "config.yaml")
 }
 
 func resolveLogPath() string {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return filepath.Join("logs", "whisper-voice-util.log")
+		return filepath.Join("logs", "voces.log")
 	}
-	return filepath.Join(configDir, "whisper-voice-util", "logs", "whisper-voice-util.log")
+	return filepath.Join(configDir, "voces", "logs", "voces.log")
 }

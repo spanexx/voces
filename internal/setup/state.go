@@ -1,6 +1,6 @@
 /* Code Map: Setup State Persistence
  * - State: user-completed setup snapshot (language, models, hotkey)
- * - Load/Save: round-trip State to disk at $XDG_DATA_HOME/whisper-voice-util/state.json
+ * - Load/Save: round-trip State to disk at $XDG_DATA_HOME/voces/state.json
  * - ShouldRun: decides if the wizard should auto-launch
  * - pathForState: resolves the canonical state file path
  *
@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"whisper-voice-util/internal/paths"
+	"voces/internal/paths"
 )
 
 // stateFileName is the leaf filename under the data dir.

@@ -78,8 +78,8 @@ func (w *WhisperCPP) resolvePathsIfNeeded() {
 
 // CID:transcription-whisper-paths-003 - resolveWhisperBinaryAndModel
 func resolveWhisperBinaryAndModel(configuredBin, configuredModel string) (string, string) {
-	managedBin := "/usr/local/share/whisper-voice-util/whisper.cpp/bin/whisper-cli"
-	managedModel := "/usr/local/share/whisper-voice-util/whisper.cpp/models/ggml-base.en.bin"
+	managedBin := "/usr/local/share/voces/whisper.cpp/bin/whisper-cli"
+	managedModel := "/usr/local/share/voces/whisper.cpp/models/ggml-base.en.bin"
 
 	bin := configuredBin
 	if bin == "" || !fileExists(bin) {

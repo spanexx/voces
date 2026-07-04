@@ -19,7 +19,7 @@ import (
 
 const desktopEntryContent = `[Desktop Entry]
 Type=Application
-Name=Whisper Voice Utility
+Name=Voces
 Comment=Voice transcription and TTS assistant
 Exec=%s
 Icon=audio-input-microphone
@@ -39,7 +39,7 @@ func desktopEntryPath() (string, error) {
 	if err := os.MkdirAll(autoStartDir, 0755); err != nil {
 		return "", err
 	}
-	return filepath.Join(autoStartDir, "whisper-voice-util.desktop"), nil
+	return filepath.Join(autoStartDir, "voces.desktop"), nil
 }
 
 // EnableAutostart creates the XDG autostart desktop entry.
@@ -49,7 +49,7 @@ func EnableAutostart() error {
 		return err
 	}
 
-	execPath, err := exec.LookPath("whisper-voice-util")
+	execPath, err := exec.LookPath("voces")
 	if err != nil {
 		execPath, err = os.Executable()
 		if err != nil {

@@ -18,7 +18,7 @@ import (
 	"log"
 	"sync"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // CID:hotkey-manager-001 - Manager

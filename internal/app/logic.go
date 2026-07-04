@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"whisper-voice-util/internal/tray"
+	"voces/internal/tray"
 )
 
 // CID:app-logic-001 - processTranscription

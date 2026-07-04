@@ -17,7 +17,7 @@ package tts
 import (
 	"fmt"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // CID:tts-manager-001 - TTS

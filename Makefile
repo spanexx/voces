@@ -1,10 +1,10 @@
-# Makefile for Whisper Voice Utility
+# Makefile for Voces
 
 .PHONY: help precommit test build clean install-hooks install install-fast uninstall release release-clean engines vendor/whisper.cpp whispercpp-build whispercpp-install vendor/piper piper-build
 
 # Default target
 help:
-	@echo "Whisper Voice Utility - Makefile Commands"
+	@echo "Voces - Makefile Commands"
 	@echo ""
 	@echo "  precommit              - Run all pre-commit checks"
 	@echo "  test                   - Run tests with coverage"
@@ -73,9 +73,9 @@ test:
 # Build the application
 build:
 	@echo "🔨 Building application..."
-	@go build -mod=vendor -o bin/whisper-voice-util ./cmd/whisper-voice-util
-	@go build -mod=vendor -o bin/whisper-voice-overlay ./cmd/whisper-voice-overlay
-	@echo "✅ Build complete: bin/whisper-voice-util"
+	@go build -mod=vendor -o bin/voces ./cmd/voces
+	@go build -mod=vendor -o bin/voces-overlay ./cmd/voces-overlay
+	@echo "✅ Build complete: bin/voces"
 
 # Clean build artifacts
 clean:
@@ -120,8 +120,8 @@ lint:
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 DATADIR = $(PREFIX)/share
-WVUDIR = $(DATADIR)/whisper-voice-util
-WHISPERCPPDIR = $(WVUDIR)/whisper.cpp
+VOCESDIR = $(DATADIR)/voces
+WHISPERCPPDIR = $(VOCESDIR)/whisper.cpp
 ICONDIR = $(DATADIR)/icons/hicolor/64x64/apps
 APPDIR = $(DATADIR)/applications
 
@@ -134,8 +134,8 @@ install-fast:
 	@echo "🚚 Installing from existing build artifacts..."
 	@sudo -v
 	@sudo mkdir -p $(BINDIR)
-	@sudo install -m 755 bin/whisper-voice-util $(BINDIR)/
-	@sudo install -m 755 bin/whisper-voice-overlay $(BINDIR)/
+	@sudo install -m 755 bin/voces $(BINDIR)/
+	@sudo install -m 755 bin/voces-overlay $(BINDIR)/
 	@# Optional: install managed whisper.cpp artifacts if built
 	@if [ -f vendor/whisper.cpp/build/bin/whisper-cli ]; then \
 		echo "📦 Installing managed whisper.cpp..."; \
@@ -145,25 +145,25 @@ install-fast:
 		if [ -d vendor/whisper.cpp/models ]; then sudo cp -a vendor/whisper.cpp/models/. $(WHISPERCPPDIR)/models/; fi; \
 	fi
 	@sudo mkdir -p $(ICONDIR)
-	@sudo install -m 644 assets/icons/idle.png $(ICONDIR)/whisper-voice-util.png
+	@sudo install -m 644 assets/icons/idle.png $(ICONDIR)/voces.png
 	@sudo mkdir -p $(APPDIR)
-	@sudo install -m 644 whisper-voice-util.desktop $(APPDIR)/
+	@sudo install -m 644 voces.desktop $(APPDIR)/
 	@if command -v gtk-update-icon-cache >/dev/null 2>&1; then \
 		sudo gtk-update-icon-cache -f -t $(DATADIR)/icons/hicolor || true; \
 	fi
 	@if command -v update-desktop-database >/dev/null 2>&1; then \
 		sudo update-desktop-database $(APPDIR) || true; \
 	fi
-	@echo "✅ Installation complete. You can now run 'whisper-voice-util' from anywhere."
+	@echo "✅ Installation complete. You can now run 'voces' from anywhere."
 
 uninstall:
 	@echo "🗑️  Uninstalling globally..."
 	@sudo -v
-	@sudo rm -f $(BINDIR)/whisper-voice-util
-	@sudo rm -f $(BINDIR)/whisper-voice-overlay
+	@sudo rm -f $(BINDIR)/voces
+	@sudo rm -f $(BINDIR)/voces-overlay
 	@sudo rm -rf $(WHISPERCPPDIR)
-	@sudo rm -f $(ICONDIR)/whisper-voice-util.png
-	@sudo rm -f $(APPDIR)/whisper-voice-util.desktop
+	@sudo rm -f $(ICONDIR)/voces.png
+	@sudo rm -f $(APPDIR)/voces.desktop
 	@if command -v gtk-update-icon-cache >/dev/null 2>&1; then \
 		sudo gtk-update-icon-cache -f -t $(DATADIR)/icons/hicolor || true; \
 	fi

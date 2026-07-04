@@ -25,7 +25,7 @@ import (
 
 	"github.com/gotk3/gotk3/gtk"
 
-	"whisper-voice-util/internal/wizard/steps"
+	"voces/internal/wizard/steps"
 )
 
 // CID:wizard-001 - AppVersion

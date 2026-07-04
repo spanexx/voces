@@ -30,7 +30,7 @@ func Save(cfg *Config) error {
 	if err := validateConfig(cfg); err != nil {
 		return fmt.Errorf("refusing to save invalid config: %w", err)
 	}
-	dir := filepath.Join(configDir, "whisper-voice-util")
+	dir := filepath.Join(configDir, "voces")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create config dir: %w", err)
 	}
@@ -66,7 +66,7 @@ func createDefaultConfig(dir string) error {
 	} else {
 		userDir, err := os.UserConfigDir()
 		if err == nil {
-			dr := filepath.Join(userDir, "whisper-voice-util")
+			dr := filepath.Join(userDir, "voces")
 			os.MkdirAll(dr, 0755)
 			configPath = filepath.Join(dr, "config.yaml")
 			if isRunningUnderGoTest() {
@@ -85,7 +85,7 @@ func createDefaultConfig(dir string) error {
 		}
 	}
 
-	defaultConfig := `# Whisper Voice Utility Configuration
+	defaultConfig := `# Voces Configuration
 # ===================================
 # Auto-generated default configuration.
 # Path placeholders below are empty — the first-run setup wizard

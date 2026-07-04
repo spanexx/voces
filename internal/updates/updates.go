@@ -40,10 +40,10 @@ const defaultRequestTimeout = 5 * time.Second
 // without recompiling. Phase 8 will freeze these via -ldflags.
 const (
 	defaultOwner = "spanexx"
-	defaultRepo  = "whisper-voice-util"
-	envOwner     = "WVU_GITHUB_OWNER"
-	envRepo      = "WVU_GITHUB_REPO"
-	envBaseURL   = "WVU_GITHUB_API_BASE" // override for tests / GitHub Enterprise
+	defaultRepo  = "voces"
+	envOwner     = "VOCES_GITHUB_OWNER"
+	envRepo      = "VOCES_GITHUB_REPO"
+	envBaseURL   = "VOCES_GITHUB_API_BASE" // override for tests / GitHub Enterprise
 )
 
 // CID:updates-001 - Release
@@ -53,7 +53,7 @@ const (
 // TagName / HTMLURL after a check.
 type Release struct {
 	TagName     string  `json:"tag_name"`     // e.g. "v0.2.0"
-	Name        string  `json:"name"`         // human label, e.g. "Whisper Voice Utility 0.2.0"
+	Name        string  `json:"name"`         // human label, e.g. "Voces 0.2.0"
 	HTMLURL     string  `json:"html_url"`     // link to the release page
 	PublishedAt string  `json:"published_at"` // ISO 8601; kept as string to avoid TZ surprises
 	Assets      []Asset `json:"assets"`
@@ -77,7 +77,7 @@ type Asset struct {
 var ErrNoRelease = errors.New("updates: no release published yet")
 
 // apiBase returns the GitHub API base URL. Default is the public
-// api.github.com; WVU_GITHUB_API_BASE overrides for tests / GHES.
+// api.github.com; VOCES_GITHUB_API_BASE overrides for tests / GHES.
 func apiBase() string {
 	if v := os.Getenv(envBaseURL); v != "" {
 		return strings.TrimRight(v, "/")
@@ -86,7 +86,7 @@ func apiBase() string {
 }
 
 // OwnerRepo returns the configured GitHub owner/repo. Reads
-// WVU_GITHUB_OWNER / WVU_GITHUB_REPO; falls back to the upstream
+// VOCES_GITHUB_OWNER / VOCES_GITHUB_REPO; falls back to the upstream
 // defaults. Exported so tests and the build pipeline can read the
 // same values the check uses.
 func OwnerRepo() (owner, repo string) {
@@ -118,7 +118,7 @@ func releaseURL() string {
 
 // userAgent is the UA string the App sends. GitHub requires a UA for
 // API calls (per their docs); "go-github" is a conventional value.
-const userAgent = "whisper-voice-util"
+const userAgent = "voces"
 
 // CID:updates-004 - LatestRelease
 // Purpose: GET GitHub's "latest release" endpoint, parse the JSON
@@ -130,7 +130,7 @@ const userAgent = "whisper-voice-util"
 //   - any other non-2xx → return a typed error mentioning the status.
 //   - network / parse error → return as-is; caller logs and moves on.
 //
-// baseURL override is provided for tests via WVU_GITHUB_API_BASE;
+// baseURL override is provided for tests via VOCES_GITHUB_API_BASE;
 // releaseURL() reads it.
 func LatestRelease(ctx context.Context) (*Release, error) {
 	url := releaseURL()

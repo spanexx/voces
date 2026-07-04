@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 func TestSplitByTypeability(t *testing.T) {

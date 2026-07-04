@@ -27,7 +27,7 @@ import (
 )
 
 // CID:overlay-001 - Manager
-// Purpose: lifecycle owner of the cmd/whisper-voice-overlay subprocess.
+// Purpose: lifecycle owner of the cmd/voces-overlay subprocess.
 // The overlay process is a tiny standalone GTK window that animates
 // a "recording" bar; the manager launches it, signals STOP over a
 // unix socket when the user clicks, and cleans up on shutdown.
@@ -53,7 +53,7 @@ func (m *Manager) Start(onStop func()) error {
 		return nil
 	}
 
-	sock := filepath.Join(os.TempDir(), "whisper-voice-util-overlay.sock")
+	sock := filepath.Join(os.TempDir(), "voces-overlay.sock")
 	_ = os.Remove(sock)
 
 	ln, err := net.Listen("unix", sock)
@@ -70,7 +70,7 @@ func (m *Manager) Start(onStop func()) error {
 		_ = ln.Close()
 		return fmt.Errorf("overlay failed to get executable path: %w", err)
 	}
-	overlayBin := filepath.Join(filepath.Dir(exe), "whisper-voice-overlay")
+	overlayBin := filepath.Join(filepath.Dir(exe), "voces-overlay")
 	cmd := exec.CommandContext(ctx, overlayBin, "--socket", sock)
 	cmd.Stdout = nil
 	cmd.Stderr = nil

@@ -19,7 +19,7 @@ package wizardcli
 import (
 	"testing"
 
-	"whisper-voice-util/internal/setup"
+	"voces/internal/setup"
 )
 
 // TestShouldRunSetup_ForceSetup: --setup flag and `setup` subcommand

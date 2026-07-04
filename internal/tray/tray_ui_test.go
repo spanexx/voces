@@ -3,8 +3,8 @@ package tray
 import (
 	"strings"
 	"testing"
-	"whisper-voice-util/internal/config"
-	"whisper-voice-util/internal/updates"
+	"voces/internal/config"
+	"voces/internal/updates"
 )
 
 func TestUI_onReady(t *testing.T) {

@@ -18,7 +18,7 @@ package wizard
 import (
 	"github.com/gotk3/gotk3/gtk"
 
-	"whisper-voice-util/internal/wizard/steps"
+	"voces/internal/wizard/steps"
 )
 
 // CID:wizard-reg-001 - stepKey

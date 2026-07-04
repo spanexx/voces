@@ -1,4 +1,4 @@
-// Package main provides the entry point for the Whisper Voice Utility.
+// Package main provides the entry point for the Voces.
 // This application provides voice transcription and text-to-speech capabilities.
 package main
 
@@ -11,10 +11,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"whisper-voice-util/internal/app"
-	"whisper-voice-util/internal/setup"
-	"whisper-voice-util/internal/wizard"
-	"whisper-voice-util/internal/wizardcli"
+	"voces/internal/app"
+	"voces/internal/setup"
+	"voces/internal/wizard"
+	"voces/internal/wizardcli"
 )
 
 // Version is injected during the build process
@@ -22,10 +22,10 @@ var Version = "dev"
 
 // manifestPath is the on-disk path to the bundled engine manifest.
 // Lives next to the binary at <exec-dir>/engines/models.json in the
-// standard layout, but can be overridden via $WVU_MANIFEST_PATH for
+// standard layout, but can be overridden via $VOCES_MANIFEST_PATH for
 // tests and dev workflows.
 func manifestPath() string {
-	if v := os.Getenv("WVU_MANIFEST_PATH"); v != "" {
+	if v := os.Getenv("VOCES_MANIFEST_PATH"); v != "" {
 		return v
 	}
 	exe, err := os.Executable()
@@ -97,14 +97,14 @@ func main() {
 		log.Fatalf("flag parsing: %v\n", err)
 	}
 	if parsed.showVersion {
-		fmt.Printf("Whisper Voice Utility version %s\n", Version)
+		fmt.Printf("Voces version %s\n", Version)
 		os.Exit(0)
 	}
 
 	if configDir, err := os.UserConfigDir(); err == nil {
-		logDir := filepath.Join(configDir, "whisper-voice-util", "logs")
+		logDir := filepath.Join(configDir, "voces", "logs")
 		_ = os.MkdirAll(logDir, 0755)
-		logPath := filepath.Join(logDir, "whisper-voice-util.log")
+		logPath := filepath.Join(logDir, "voces.log")
 		if f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
 			log.SetOutput(io.MultiWriter(os.Stderr, f))
 		}
@@ -157,7 +157,7 @@ type parsedArgs struct {
 //	--wizard-only      run only the wizard and exit (no tray, no
 //	                   single-instance lock); used by the tray menu
 func parseArgs(args []string) (parsedArgs, error) {
-	fs := flag.NewFlagSet("whisper-voice-util", flag.ContinueOnError)
+	fs := flag.NewFlagSet("voces", flag.ContinueOnError)
 	showVersion := fs.Bool("version", false, "Print the application version and exit")
 	runSetup := fs.Bool("setup", false, "Run the setup wizard before starting the tray")
 	wizardOnly := fs.Bool("wizard-only", false, "Run only the setup wizard and exit (no tray)")

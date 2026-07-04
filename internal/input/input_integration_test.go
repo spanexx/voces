@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 // setupFakeBinaries creates executable scripts in a temporary directory

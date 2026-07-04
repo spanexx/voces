@@ -24,13 +24,13 @@ import (
 )
 
 // appDataDirName is the leaf directory under $XDG_DATA_HOME or $HOME.
-const appDataDirName = "whisper-voice-util"
+const appDataDirName = "voces"
 
 // enginesEnvVar overrides the engines directory when set.
-const enginesEnvVar = "WVU_ENGINES_DIR"
+const enginesEnvVar = "VOCES_ENGINES_DIR"
 
 // systemEnginesDir is the fallback path used by `make install`.
-const systemEnginesDir = "/usr/local/share/whisper-voice-util/bin"
+const systemEnginesDir = "/usr/local/share/voces/bin"
 
 // enginesSubdir is the leaf name of the bundled engine directory
 // (relative to the binary's location or the env-var root).
@@ -68,7 +68,7 @@ func ModelsDir() (string, error) {
 
 // CID:paths-003 - WhisperModelPath
 // Purpose: Returns the canonical absolute path for a whisper .bin file.
-// Example: WhisperModelPath("ggml-small.en.bin") -> ~/.local/share/whisper-voice-util/models/whisper/ggml-small.en.bin
+// Example: WhisperModelPath("ggml-small.en.bin") -> ~/.local/share/voces/models/whisper/ggml-small.en.bin
 func WhisperModelPath(name string) (string, error) {
 	models, err := ModelsDir()
 	if err != nil {
@@ -79,7 +79,7 @@ func WhisperModelPath(name string) (string, error) {
 
 // CID:paths-004 - PiperVoicePath
 // Purpose: Returns the canonical absolute path for a piper .onnx voice file.
-// Example: PiperVoicePath("en_US-lessac-medium") -> ~/.local/share/whisper-voice-util/models/piper/en_US-lessac-medium.onnx
+// Example: PiperVoicePath("en_US-lessac-medium") -> ~/.local/share/voces/models/piper/en_US-lessac-medium.onnx
 func PiperVoicePath(base string) (string, error) {
 	models, err := ModelsDir()
 	if err != nil {
@@ -91,10 +91,10 @@ func PiperVoicePath(base string) (string, error) {
 // CID:paths-005 - EnginesDir
 // Purpose: Returns the directory containing the bundled engine binaries.
 // Resolution order:
-//  1. $WVU_ENGINES_DIR (if set and non-empty)
-//  2. <exec-parent>/engines (binary at <dir>/bin/whisper-voice-util)
-//  3. <exec-dir>/engines (binary at <dir>/whisper-voice-util)
-//  4. /usr/local/share/whisper-voice-util/bin (make install fallback)
+//  1. $VOCES_ENGINES_DIR (if set and non-empty)
+//  2. <exec-parent>/engines (binary at <dir>/bin/voces)
+//  3. <exec-dir>/engines (binary at <dir>/voces)
+//  4. /usr/local/share/voces/bin (make install fallback)
 // Returns an error if none of the above resolve to a directory that exists.
 func EnginesDir() (string, error) {
 	exe, err := os.Executable()
@@ -147,8 +147,8 @@ func xdgDataHome() (string, error) {
 
 // enginesCandidates returns the parent directories to try for an engines/
 // sibling of the running binary, in priority order. The binary is expected
-// to live at <parent>/bin/whisper-voice-util (try parent) or
-// <parent>/whisper-voice-util (try parent).
+// to live at <parent>/bin/voces (try parent) or
+// <parent>/voces (try parent).
 func enginesCandidates(exe string) []string {
 	dir := filepath.Dir(exe)
 	candidates := []string{dir}

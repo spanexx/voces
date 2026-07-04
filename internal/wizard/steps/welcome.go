@@ -21,7 +21,7 @@ const welcomeText = "This setup will download the speech recognition model and v
 	"that all required system components (clipboard, auto-typer, tray icon, " +
 	"hotkey) are installed.\n\n" +
 	"You can cancel at any time by closing this window. Re-run the setup " +
-	"any time with: whisper-voice-util --setup."
+	"any time with: voces --setup."
 
 // CID:wizard-welcome-001 - BuildWelcome
 // Purpose: assemble the welcome step (title + body + Next button) and
@@ -30,9 +30,9 @@ const welcomeText = "This setup will download the speech recognition model and v
 // the welcome step does not write to wizard.State.
 //
 // Layout:
-//   - Title: "Welcome to Whisper Voice Utility"
+//   - Title: "Welcome to Voces"
 //   - Body: welcomeText (wrapped)
-//   - Footer: "Whisper Voice Utility v<version>"
+//   - Footer: "Voces v<version>"
 //   - Buttons: Next only ("Get started")
 func BuildWelcome(win *gtk.Window, version string) (*Step, error) {
 	body, err := gtk.LabelNew(welcomeText)
@@ -48,14 +48,14 @@ func BuildWelcome(win *gtk.Window, version string) (*Step, error) {
 	}
 	content.PackStart(body, true, true, 0)
 
-	footer, err := gtk.LabelNew(fmt.Sprintf("Whisper Voice Utility v%s", version))
+	footer, err := gtk.LabelNew(fmt.Sprintf("Voces v%s", version))
 	if err != nil {
 		return nil, fmt.Errorf("welcome: footer label: %w", err)
 	}
 	footer.SetHAlign(gtk.ALIGN_END)
 	content.PackStart(footer, false, false, 0)
 
-	box, _, next, err := newStepContent("Welcome to Whisper Voice Utility", content, "", "Get started")
+	box, _, next, err := newStepContent("Welcome to Voces", content, "", "Get started")
 	if err != nil {
 		return nil, fmt.Errorf("welcome: build content: %w", err)
 	}

@@ -25,7 +25,7 @@ package tray
 import (
 	"testing"
 	"time"
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 const trayTestTimeout = 500 * time.Millisecond

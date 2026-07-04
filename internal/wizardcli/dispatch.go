@@ -1,7 +1,7 @@
 /* Code Map: wizardcli dispatch
  * - ShouldRunSetup: pure-ish decision function that decides whether
  *   the cmd entrypoint should launch the setup wizard. Used by
- *   cmd/whisper-voice-util/main.go to gate the GTK initialisation
+ *   cmd/voces/main.go to gate the GTK initialisation
  *   on user intent + state.json status. No GTK dependency, no
  *   network, no side effects — testable with t.Setenv.
  *
@@ -15,7 +15,7 @@ package wizardcli
 import (
 	"fmt"
 
-	"whisper-voice-util/internal/setup"
+	"voces/internal/setup"
 )
 
 // CID:wizardcli-dispatch-001 - ShouldRunSetup

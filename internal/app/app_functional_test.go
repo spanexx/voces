@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"whisper-voice-util/internal/audio"
-	"whisper-voice-util/internal/config"
-	"whisper-voice-util/internal/hotkey"
-	"whisper-voice-util/internal/input"
-	"whisper-voice-util/internal/notify"
-	"whisper-voice-util/internal/transcription"
-	"whisper-voice-util/internal/tray"
-	"whisper-voice-util/internal/tts"
+	"voces/internal/audio"
+	"voces/internal/config"
+	"voces/internal/hotkey"
+	"voces/internal/input"
+	"voces/internal/notify"
+	"voces/internal/transcription"
+	"voces/internal/tray"
+	"voces/internal/tts"
 )
 
 func TestApplication_Handlers_Logic(t *testing.T) {

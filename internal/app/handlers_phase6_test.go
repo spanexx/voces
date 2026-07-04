@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"whisper-voice-util/internal/paths"
+	"voces/internal/paths"
 )
 
 func newTestApplication() *Application {
@@ -73,7 +73,7 @@ func TestOpenDataDir_ResolvesCanonicalPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("paths.DataDir: %v", err)
 	}
-	wantSuffix := filepath.Join("whisper-voice-util")
+	wantSuffix := filepath.Join("voces")
 	if !strings.HasSuffix(got, wantSuffix) {
 		t.Errorf("paths.DataDir() = %q, want suffix %q", got, wantSuffix)
 	}

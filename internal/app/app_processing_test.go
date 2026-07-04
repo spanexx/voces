@@ -4,11 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"whisper-voice-util/internal/config"
-	"whisper-voice-util/internal/input"
-	"whisper-voice-util/internal/notify"
-	"whisper-voice-util/internal/transcription"
-	"whisper-voice-util/internal/tray"
+	"voces/internal/config"
+	"voces/internal/input"
+	"voces/internal/notify"
+	"voces/internal/transcription"
+	"voces/internal/tray"
 )
 
 func TestApplication_ProcessTranscription_Full(t *testing.T) {

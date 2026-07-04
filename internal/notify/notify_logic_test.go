@@ -2,7 +2,7 @@ package notify
 
 import (
 	"testing"
-	"whisper-voice-util/internal/config"
+	"voces/internal/config"
 )
 
 func TestNotifications_ErrorPaths(t *testing.T) {
