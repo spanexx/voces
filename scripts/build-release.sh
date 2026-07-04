@@ -18,8 +18,14 @@
 #       models.json               # engine manifest (URLs, sizes, hashes)
 #     README.md
 #     USAGE.md
-#     install-deps.sh
+#     install-deps.sh             # apt installer for system libs
+#     install.sh                  # top-level one-liner installer
 #     config.yaml.example
+#
+# Sibling release assets (in builds/, NOT inside the tarball — uploaded
+# alongside it as a GitHub Release asset so the one-liner works):
+#   builds/install.sh             # fetched via
+#                                 #   https://github.com/.../releases/latest/download/install.sh
 #
 # Re-runnable. Wipes the per-version build dir on each run.
 
@@ -116,7 +122,7 @@ else
 fi
 
 # 7. Copy docs and helpers.
-echo "📁 Copying docs + install-deps.sh + config.yaml.example..."
+echo "📁 Copying docs + install-deps.sh + install.sh + config.yaml.example..."
 for f in README.md USAGE.md; do
     if [[ -f "$f" ]]; then
         cp "$f" "${RELEASE_DIR}/"
@@ -128,6 +134,17 @@ done
 if [[ -f scripts/install-deps.sh ]]; then
     cp scripts/install-deps.sh "${RELEASE_DIR}/"
     chmod +x "${RELEASE_DIR}/install-deps.sh"
+fi
+
+# install.sh: the top-level one-liner installer. Goes into the tarball
+# (so an extracted copy can re-run itself) AND into builds/ as a
+# sibling release asset (so the one-liner URL works:
+#   https://github.com/<owner>/<repo>/releases/latest/download/install.sh).
+if [[ -f install.sh ]]; then
+    cp install.sh "${RELEASE_DIR}/install.sh"
+    chmod +x "${RELEASE_DIR}/install.sh"
+    cp install.sh "${BUILD_DIR}/install.sh"
+    chmod +x "${BUILD_DIR}/install.sh"
 fi
 
 if [[ -f config.yaml.example ]]; then
@@ -160,3 +177,6 @@ echo "======================================"
 echo ""
 echo "Next: upload to GitHub Releases as a ${VERSION/-rc/.rc} pre-release (rc) or"
 echo "latest (non-rc). The App's auto-updater will then find it automatically."
+echo ""
+echo "User-facing install (after upload):"
+echo "  curl -fsSL https://github.com/<owner>/whisper-voice-util/releases/latest/download/install.sh | bash"

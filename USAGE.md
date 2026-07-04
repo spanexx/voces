@@ -4,53 +4,88 @@ Whisper Voice Utility is a tool that lets you talk into your computer and have i
 
 ---
 
-## 🚀 How to Install
+## 🚀 Quick Install (one line)
 
-### 1. Get the Software
-Download the latest release from the [GitHub Releases page](https://github.com/yourusername/whisper-voice-util/releases) — look for a file ending in `-linux-amd64.tar.gz`.
+If you're on Debian / Ubuntu / Pop!_OS / Linux Mint / KDE neon / Zorin, just paste this into a terminal:
 
-*   **Ready-to-use:** Download the `.tar.gz` file, extract it anywhere:
-    ```bash
-    tar xzf whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz
-    cd whisper-voice-util-vX.Y.Z
-    ```
-*   **Build from scratch:** If you have the source code, open a terminal in the project folder and type:
-    ```bash
-    make build
-    ```
-    This creates the program in a folder called `bin`.
+```bash
+curl -fsSL https://github.com/yourusername/whisper-voice-util/releases/latest/download/install.sh | bash
+```
 
-### 2. Install System Helpers (one time)
-Your computer needs a few extra "helpers" to handle the clipboard, keyboard, and system tray. From inside the extracted folder, run:
+That's it. The script will:
+1. Download the latest release tarball from GitHub.
+2. Extract it to `/opt/whisper-voice-util/`.
+3. Install the system libraries (GTK 3, system tray, clipboard, etc.) with `apt-get`.
+4. Link `whisper-voice-util` into your `$PATH`.
+5. Add an entry to your app menu.
+
+When it finishes, just type `whisper-voice-util` (or click the icon in your app menu). The **setup wizard** will open the first time, walk you through picking a language and downloading the model, and the tray icon will appear.
+
+To uninstall later:
+
+```bash
+sudo rm -rf /opt/whisper-voice-util
+sudo rm -f /usr/local/bin/whisper-voice-util /usr/local/bin/whisper-voice-overlay
+sudo rm -f /usr/local/share/applications/whisper-voice-util.desktop
+```
+
+---
+
+## 📦 Manual Install (if you prefer to see what runs)
+
+If you'd rather not pipe a remote script into `bash`, or you're on a non-Debian distro, you can do it by hand. It takes 3 commands:
+
+### 1. Download and extract
+
+Grab `whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz` from the [GitHub Releases page](https://github.com/yourusername/whisper-voice-util/releases) and extract it:
+
+```bash
+tar xzf whisper-voice-util-vX.Y.Z-linux-amd64.tar.gz
+cd whisper-voice-util-vX.Y.Z
+```
+
+The folder contains:
+```
+whisper-voice-util          # the main binary
+whisper-voice-overlay       # the recording indicator window
+engines/                    # bundled whisper.cpp (+ piper if built)
+README.md
+USAGE.md
+install.sh                  # the one-liner installer (re-runnable)
+install-deps.sh             # apt installer for system libraries
+config.yaml.example         # template; the wizard fills this in for you
+```
+
+### 2. Install system dependencies (one time)
+
+`install-deps.sh` installs the libraries the App needs at runtime: GTK 3, the system-tray library, xclip / xdotool, the audio stack, espeak-ng (for piper TTS).
+
 ```bash
 sudo ./install-deps.sh
 ```
-This is safe to re-run. It only installs what's missing.
 
-### 3. First Run
-Find the `whisper-voice-util` file and double-click it, or run it from the terminal:
+It detects your distro, prepends `sudo` if you're not root, skips already-installed packages, and exits cleanly. Re-runnable.
+
+### 3. Run
+
 ```bash
 ./whisper-voice-util
 ```
-On first launch, a **setup wizard** window appears. It walks you through:
-- Picking your language
-- Downloading the speech recognition "brain" (a model file)
-- Picking a hotkey
-- (Optional) Downloading a voice for the speaking feature
 
-Click "Start" at the end. The wizard saves your choices and the tray icon (a small microphone in your system tray) appears. You're ready to go.
+The first launch detects that no setup state exists and opens the **setup wizard** — a small GTK window that walks you through:
 
-### 4. (Optional) Global Installation
-To make the program available everywhere on your system (adding it to your app menu and letting you run `whisper-voice-util` from any terminal), use the following command:
-```bash
-sudo make install
-```
-This will:
-- Copy the program to your system path.
-- Add an icon to your application menu.
-- Register the app so it appears in your launcher.
+1. **Welcome** — a quick overview
+2. **Language** — pick your speech language (English is default; the manifest lists 99)
+3. **Whisper model** — choose a size and watch the download progress bar
+4. **Hotkey** — pick a preset or capture your own key combination
+5. **Piper voice** — (optional) pick a TTS voice and watch the download
+6. **Finish** — "Start" writes `state.json` and `config.yaml` with the resolved paths
 
-*To remove it later, run `sudo make uninstall`.*
+After the wizard finishes, the system tray icon appears and the App is ready. Hold your hotkey, speak, release, and your words appear at the cursor.
+
+### 4. (Optional) Install globally
+
+If you'd like `whisper-voice-util` on your `$PATH` and a desktop file in your app menu, run `sudo make install` from the extracted directory. Use `sudo make uninstall` to remove.
 
 ---
 

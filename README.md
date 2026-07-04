@@ -18,7 +18,27 @@ Whisper Voice Utility is a Linux desktop application that provides system-wide p
 
 ## Installation (end-user, from a release tarball)
 
-This is the recommended install path. Works on any Debian-family Linux distribution (Ubuntu, Pop!_OS, Linux Mint, elementary, KDE neon, Zorin).
+Works on any Debian-family Linux distribution (Ubuntu, Pop!_OS, Linux Mint, elementary, KDE neon, Zorin). Other distros can use the manual path below.
+
+### Quick install (one line)
+
+```bash
+curl -fsSL https://github.com/yourusername/whisper-voice-util/releases/latest/download/install.sh | bash
+```
+
+That's it. The script downloads the latest tarball, extracts it to `/opt/whisper-voice-util/`, runs `install-deps.sh` to install the system libraries, links the binaries into your `$PATH`, and adds an app-menu entry. When it finishes, type `whisper-voice-util` (or click the menu entry) — the setup wizard will open on first launch.
+
+To uninstall:
+
+```bash
+sudo rm -rf /opt/whisper-voice-util
+sudo rm -f /usr/local/bin/whisper-voice-util /usr/local/bin/whisper-voice-overlay
+sudo rm -f /usr/local/share/applications/whisper-voice-util.desktop
+```
+
+### Manual install
+
+If you'd rather see what runs (or you're on a non-Debian distro), the manual path is: download, extract, install system deps, then run. There are also two optional follow-ups: install globally, or build from source (see below).
 
 ### 1. Download the latest release
 
@@ -38,6 +58,7 @@ whisper-voice-overlay       # the recording indicator window
 engines/                    # bundled whisper.cpp (+ piper if the build succeeded)
 README.md
 USAGE.md
+install.sh                  # the one-liner installer (re-runnable)
 install-deps.sh             # one-time system dep installer
 config.yaml.example         # template; the wizard fills this in for you
 ```
