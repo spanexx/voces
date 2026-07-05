@@ -81,15 +81,64 @@ fi
 #    variant when the apt cache lists it as a real package; older
 #    distros (Ubuntu 22.04, Debian 12) only have the base name and
 #    the helper falls back to that.
+#
+#    The previous version used only `apt-cache show <t64> | grep
+#    "^Package: ..."` to detect the t64 variant. That check is
+#    fragile: when the apt cache is partially populated (e.g. one
+#    repo has a GPG error and apt-get update returns a partial
+#    lists/ tree), `apt-cache show` can return empty even though
+#    the package is installable. The user hit this exact case on
+#    Linux Mint 22.3 with a broken atlassian apt key — the cache
+#    for the Ubuntu main repo was intact (apt-get install would
+#    have worked) but `apt-cache show libasound2t64 | grep ^Package`
+#    returned nothing, so resolve_pkg fell back to the base name
+#    and the install failed with "Package 'libasound2' has no
+#    installation candidate".
+#
+#    New strategy: try multiple detection methods in order, with a
+#    hardcoded t64 list for the known-new distros as the final
+#    fallback. Each check is fast and has a clear pass/fail.
 resolve_pkg() {
     local base="$1"
     local t64="${base}t64"
-    if apt-cache show "$t64" 2>/dev/null \
-            | grep -q "^Package: ${t64}$"; then
+    # (a) Already installed? Use it. This is the fast path and also
+    #     handles "I just installed it in a previous attempt".
+    if dpkg -s "$t64" >/dev/null 2>&1; then
         echo "$t64"
-    else
-        echo "$base"
+        return
     fi
+    # (b) apt-cache madison: lists each available version as
+    #     "<name> | <version> | <repo>". One line means at least one
+    #     version is in the cache. More reliable than `apt-cache
+    #     show` because it doesn't depend on the full control-file
+    #     being present (a partial cache can still resolve the
+    #     binary package name).
+    if apt-cache madison "$t64" 2>/dev/null | grep -q "^${t64} |"; then
+        echo "$t64"
+        return
+    fi
+    # (c) apt-cache show: the original check, kept as a fallback.
+    #     Works when the apt cache is fully populated.
+    if apt-cache show "$t64" 2>/dev/null | grep -q "^Package: ${t64}$"; then
+        echo "$t64"
+        return
+    fi
+    # (d) Hardcoded fallback for known-new distros. The whole
+    #     point of t64 is the time_t=64-bit ABI transition that
+    #     started with Ubuntu 24.04 / Debian 13 / Linux Mint 22.
+    #     For those distros, t64 is always the correct name; we
+    #     don't need to ask apt.
+    case "${ID:-unknown}:${VERSION_ID:-0}" in
+        linuxmint:2[2-9]*|linuxmint:3[0-9]*) echo "$t64"; return ;;
+        ubuntu:2[4-9].*|ubuntu:3[0-9]*|pop:2[4-9].*|pop:3[0-9]*|zorin:1[7-9]*|zorin:2[0-9]*|"kde neon":2[4-9]*|"kde neon":3[0-9]*|elementary:8*|elementary:9*) echo "$t64"; return ;;
+        debian:1[3-9]*|debian:2[0-9]*) echo "$t64"; return ;;
+    esac
+    # (e) Last resort: the base name. On older distros this is
+    #     the real package; on new distros where every check
+    #     above failed (broken cache, no network, etc.) the
+    #     install will fail with a clear error message rather
+    #     than silently picking a wrong provider.
+    echo "$base"
 }
 
 # 5. Runtime packages. Keep the list in lockstep with the comment at top.

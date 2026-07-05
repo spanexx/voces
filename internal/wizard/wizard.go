@@ -1,17 +1,5 @@
-/* Code Map: Wizard Driver
- * - AppVersion: version string rendered in the welcome footer
- * - ensureInit: idempotent GTK init
- * - RunWelcome: welcome step only (returns true on Next, false on close)
- * - RunFull: 4-5 step chain (welcome → language → hotkey → tts? → finish)
- *
- * CID Index:
- * CID:wizard-001 -> AppVersion
- * CID:wizard-002 -> ensureInit
- * CID:wizard-003 -> RunWelcome
- * CID:wizard-004 -> RunFull
- *
- * Quick lookup: rg -n "CID:wizard-" internal/wizard/
- */
+// Package wizard drives the GTK setup wizard.
+// RunWelcome = single step (back-compat). RunFull = 4-5 step chain.
 package wizard
 
 import (
