@@ -3,10 +3,12 @@
  * - transcriptionBlock + whisperCPPBlock + openAIAPIBlock: ASR
  * - ttsBlock + piperBlock + elevenLabsBlock: speech synth
  * - hotkeysBlock: hotkey subsystem (rc1-11)
+ * - audioBlock: recording parameters (rc1-hotpatch-13)
  *
  * CID Index:
  * CID:setup-types-001 -> generatedConfig
  * CID:setup-types-002 -> hotkeysBlock
+ * CID:setup-types-003 -> audioBlock
  *
  * Quick lookup: rg -n "CID:setup-types-" internal/setup/types.go
  */
@@ -25,6 +27,13 @@ type generatedConfig struct {
 	Transcription transcriptionBlock `yaml:"transcription"`
 	TTS           ttsBlock           `yaml:"tts"`
 	Hotkeys       hotkeysBlock       `yaml:"hotkeys"`
+	// Audio block (rc1-hotpatch-13) — the runtime config
+	// validator (internal/config.validateConfig) requires
+	// sample_rate > 0 and channels in {1, 2}. Without this
+	// block, viper unmarshals Audio as the zero struct and
+	// app.New() fails with "audio.sample_rate must be positive"
+	// right after the wizard writes the config.
+	Audio audioBlock `yaml:"audio"`
 }
 
 type transcriptionBlock struct {
@@ -83,4 +92,16 @@ type hotkeysBlock struct {
 	ReadClipboard       string `yaml:"read_clipboard,omitempty"`
 	ToggleTTS           string `yaml:"toggle_tts,omitempty"`
 	ToggleTranscription string `yaml:"toggle_transcription,omitempty"`
+}
+
+// CID:setup-types-003 - audioBlock
+// Purpose: mirror the runtime config.AudioConfig shape with
+// sensible defaults. SampleRate=16000 + Channels=1 (mono) is
+// what whisper.cpp's ggml-small.en.bin was trained on and
+// matches internal/config.createDefaultConfig.
+type audioBlock struct {
+	SampleRate  int `yaml:"sample_rate"`
+	Channels    int `yaml:"channels"`
+	ChunkSize   int `yaml:"chunk_size"`
+	MaxDuration int `yaml:"max_duration"`
 }

@@ -275,7 +275,7 @@ func TestWizard_Full_Manual(t *testing.T) {
 		t.Log("no display server; full-wizard smoke needs a real X/Wayland session")
 		return
 	}
-	state, err := RunFull()
+	state, err := RunFull(nil)
 	if err != nil {
 		t.Fatalf("RunFull: %v", err)
 	}

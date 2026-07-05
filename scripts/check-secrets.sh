@@ -51,8 +51,12 @@ for file in $FILES; do
 
     for pattern in "${PATTERNS[@]}"; do
         if grep -qiE "$pattern" "$file" 2>/dev/null; then
-            # Check if it's a placeholder or environment variable
-            if ! grep -qiE "\$\{|os\.Getenv|flag\.String|default.*\"\"|TODO|FIXME|xxx|placeholder" "$file"; then
+            # Check if it's a placeholder or environment variable.
+            # Use single quotes so the backslashes survive shell
+            # processing - in double quotes \$\{ becomes ${
+            # which is invalid ERE ($ is end-of-line, { starts a
+            # quantifier) and the env-var bypass never fires.
+            if ! grep -qiE '\$\{|os\.Getenv|flag\.String|default.*""|TODO|FIXME|xxx|placeholder' "$file"; then
                 VIOLATIONS="$VIOLATIONS\n  - $file: Potential secret detected (pattern: $pattern)"
                 ERRORS=$((ERRORS + 1))
                 break

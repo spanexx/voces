@@ -237,6 +237,47 @@ tts:
 	}
 }
 
+// TestApply_WritesAudioBlock is the regression test for the
+// rc1-hotpatch-13 bug: after the wizard ran, app.New() crashed
+// with "audio.sample_rate must be positive" because the wizard's
+// generatedConfig struct did not include the audio block. Without
+// it, viper unmarshals Audio as the zero struct (sample_rate=0,
+// channels=0) and the runtime validator rejects it.
+//
+// The wizard must write a complete audio block with sane defaults
+// (16000 Hz, 1 channel — what ggml-small.en.bin was trained on).
+func TestApply_WritesAudioBlock(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	state := &State{
+		AppVersion:   "v0.1.0",
+		Language:     "en",
+		WhisperModel: "ggml-small.en.bin",
+		HotkeyPreset: HotkeyPresetCtrlSpace,
+	}
+	if err := Apply(state, DefaultManifest()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	cfgPath := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "voces", "config.yaml")
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Required-by-validator fields
+	wantPairs := []string{
+		"sample_rate: 16000",
+		"channels: 1",
+		"chunk_size: 1024",
+		"max_duration: 300",
+	}
+	for _, want := range wantPairs {
+		if !contains(data, []byte(want)) {
+			t.Errorf("config.yaml missing %q\n---\n%s\n---", want, data)
+		}
+	}
+}
+
 // contains is a tiny helper kept local to this test file to avoid pulling
 // in strings.Contains from the test binary twice. Returns true if needle
 // appears anywhere in haystack.

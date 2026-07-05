@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 
 	"voces/internal/app"
+	"voces/internal/download"
 	"voces/internal/setup"
 	"voces/internal/wizard"
 	"voces/internal/wizardcli"
@@ -56,7 +57,23 @@ func maybeRunSetup(forceSetup bool) (didRun bool, err error) {
 		return false, nil
 	}
 	log.Printf("main: wizard starting (force=%v)", forceSetup)
-	wizState, err := wizard.RunFull()
+	manifest, mErr := loadManifest()
+	if mErr != nil {
+		return true, fmt.Errorf("load manifest: %w", mErr)
+	}
+	// commit: runs INSIDE the wizard (rc1-hotpatch-13) so the
+	// progress bar can update while the model downloads. The
+	// wizard shows a "Downloading..." view and pumps GTK
+	// events via glib.IdleAdd; before this fix, the download
+	// ran on the main thread after the wizard returned, and
+	// the GNOME "Voces is not responding" overlay appeared
+	// over the frozen wizard window.
+	commit := func(ctx context.Context, wizState *wizard.State, progress download.ProgressFunc) error {
+		setupState := wizardcli.StateFromWizard(wizState, Version)
+		log.Printf("main: starting model download (model=%s, piper=%q)", setupState.WhisperModel, setupState.PiperVoice)
+		return setup.EnsureModels(ctx, setupState, manifest, progress)
+	}
+	wizState, err := wizard.RunFull(commit)
 	if err != nil {
 		return true, fmt.Errorf("wizard: %w", err)
 	}
@@ -70,14 +87,6 @@ func maybeRunSetup(forceSetup bool) (didRun bool, err error) {
 		wizState.Language, wizState.HotkeyPreset, wizState.CustomHotkey, wizState.TTSEnabled)
 	state := wizardcli.StateFromWizard(wizState, Version)
 
-	manifest, mErr := loadManifest()
-	if mErr != nil {
-		return true, fmt.Errorf("load manifest: %w", mErr)
-	}
-	log.Printf("main: starting model download (model=%s, piper=%q)", state.WhisperModel, state.PiperVoice)
-	if err := setup.EnsureModels(context.Background(), state, manifest, nil); err != nil {
-		return true, fmt.Errorf("download models: %w", err)
-	}
 	log.Printf("main: model download complete, writing state + config")
 	if err := setup.Apply(state, manifest); err != nil {
 		return true, fmt.Errorf("apply setup: %w", err)

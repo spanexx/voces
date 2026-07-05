@@ -74,6 +74,17 @@ func defaultConfigFor(s *State) generatedConfig {
 		Hotkeys: hotkeysBlock{
 			RecordAndType: hotkeyFromState(s.HotkeyPreset, s.CustomHotkey),
 		},
+		// Audio defaults (rc1-hotpatch-13). The runtime
+		// validator requires sample_rate > 0 and channels in
+		// {1, 2}; without this block viper unmarshals Audio
+		// as the zero struct and app.New() fails. Keep these
+		// values in sync with internal/config.createDefaultConfig.
+		Audio: audioBlock{
+			SampleRate:  16000,
+			Channels:    1,
+			ChunkSize:   1024,
+			MaxDuration: 300,
+		},
 	}
 }
 

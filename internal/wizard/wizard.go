@@ -3,14 +3,28 @@
 package wizard
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
 
 	"github.com/gotk3/gotk3/gtk"
 
+	"voces/internal/download"
 	"voces/internal/wizard/steps"
 )
+
+// CommitFunc runs after the user clicks "Start" on the finish step.
+// It runs in a background goroutine. The progress callback may be
+// invoked from any goroutine; the wizard marshals UI updates onto
+// the GTK main thread via glib.IdleAdd. A non-nil error is shown
+// in a GTK error dialog and the user is sent back to the finish
+// step to retry.
+//
+// Pass nil from the wizard-only entry point (the tray's "Run setup
+// again..." menu), which spawns a subprocess and does the download
+// in the parent after the wizard returns.
+type CommitFunc func(ctx context.Context, state *State, progress download.ProgressFunc) error
 
 // CID:wizard-001 - AppVersion
 // Purpose: rendered in the welcome footer. A future phase will wire
@@ -58,7 +72,7 @@ func RunWelcome() (bool, error) {
 	// for a reader that is not yet on the main loop.
 	result := make(chan bool, 1)
 	// quitOnce prevents a double gtk.MainQuit (see RunFull for the
-	// full explanation). The destroy event fires twice — once when
+	// full explanation). The destroy event fires twice - once when
 	// the user closes the window, once when win.Destroy() below
 	// runs after gtk.Main() returns.
 	var quitOnce sync.Once
@@ -83,16 +97,30 @@ func RunWelcome() (bool, error) {
 }
 
 // CID:wizard-004 - RunFull
-// Purpose: present the 4-5 step wizard (welcome → language → hotkey →
-// tts? → finish), block on the GTK main loop, return the accumulated
-// State when the user clicks "Start" (or nil on window close).
+// Purpose: present the 4-5 step wizard (welcome -> language -> hotkey
+// -> tts? -> finish), block on the GTK main loop, return the
+// accumulated State when the user clicks "Start" (or nil on window
+// close).
 //
 // The chain is rebuilt on every transition so a Back into language +
 // change of language inserts/removes the TTS step on the way forward.
-// On Next click: step.Capture(state) commits, then showStepAt swaps
-// in the next step's box inside the single contentBox wrapper.
-// On Back click: showStepAt rebuilds and re-shows the prior step.
-func RunFull() (*State, error) {
+// The step-rendering, chain-building, and click-wiring logic lives
+// in navigate.go; this function owns the GTK window, the wrapper
+// contentBox, the result channel, the finish closure, and the
+// gtk.Main loop.
+//
+// When the user clicks "Start" on the finish step, the wizard swaps
+// in a "Downloading..." view and calls commit (when non-nil) from a
+// goroutine. commit's progress callback updates a progress bar from
+// the GTK main thread via glib.IdleAdd. When commit returns, the
+// wizard finishes. This avoids the "Voces is not responding" overlay
+// that happened when EnsureModels ran on the main thread after the
+// wizard returned (rc1-hotpatch-13).
+//
+// commit may be nil - for example, the wizard-only entry point from
+// the tray menu spawns a subprocess and does the download in the
+// parent. When nil, "Start" closes the wizard without a download.
+func RunFull(commit CommitFunc) (*State, error) {
 	if err := ensureInit(); err != nil {
 		return nil, fmt.Errorf("wizard: gtk init: %w", err)
 	}
@@ -116,37 +144,6 @@ func RunFull() (*State, error) {
 	state := NewState()
 	result := make(chan *State, 1)
 
-	registry := map[stepKey]stepRenderer{
-		stepWelcome: func(win *gtk.Window, _ *State) (*steps.Step, error) {
-			return steps.BuildWelcome(win, AppVersion)
-		},
-		stepLanguage: func(win *gtk.Window, s *State) (*steps.Step, error) {
-			return steps.BuildLanguage(win, s)
-		},
-		stepHotkey: func(win *gtk.Window, s *State) (*steps.Step, error) {
-			return steps.BuildHotkey(win, s)
-		},
-		stepTTS: func(win *gtk.Window, s *State) (*steps.Step, error) {
-			return steps.BuildTTS(win, s)
-		},
-		stepFinish: func(win *gtk.Window, s *State) (*steps.Step, error) {
-			return steps.BuildFinish(win, s)
-		},
-	}
-
-	// chain returns the ordered stepKeys for the current state.
-	chain := func() []stepKey {
-		keys := []stepKey{stepWelcome, stepLanguage, stepHotkey}
-		if steps.ShouldShow(state.LanguageCode()) {
-			keys = append(keys, stepTTS)
-		}
-		keys = append(keys, stepFinish)
-		return keys
-	}
-
-	idx := 0
-	keys := chain()
-
 	// currentBox tracks the step's box currently parented under
 	// contentBox. showStepAt removes it before adding the new one,
 	// so the wrapper (and the window) always has exactly one child.
@@ -156,7 +153,7 @@ func RunFull() (*State, error) {
 	// gtk.MainQuit (which would trigger GTK's
 	// "main_loops != NULL" assertion and kill the process with
 	// SIGKILL): the explicit win.Destroy() after gtk.Main() returns
-	// re-fires the destroy event — finish() is then a no-op.
+	// re-fires the destroy event - finish() is then a no-op.
 	var quitOnce sync.Once
 	finish := func(v *State) {
 		quitOnce.Do(func() {
@@ -168,65 +165,11 @@ func RunFull() (*State, error) {
 		})
 	}
 
-	// showStepAt: declared as var + assignment (not := with the
-	// function literal) so the closure can recursively call itself.
-	var showStepAt func() error
-	showStepAt = func() error {
-		if idx < 0 || idx >= len(keys) {
-			return nil
-		}
-		k := keys[idx]
-		step, err := registry[k](win, state)
-		if err != nil {
-			return err
-		}
-		// Swap the step's box into the wrapper. Removing the
-		// previous box (if any) is what was missing — Hide() alone
-		// left it parented and triggered the GtkWindow warning.
-		if currentBox != nil {
-			contentBox.Remove(currentBox)
-		}
-		contentBox.Add(step.Box)
-		currentBox = step.Box
-		step.Box.ShowAll()
+	registry := buildStepRegistry()
+	keys := buildStepChain(state)
+	idx := 0
 
-		step.Next.Connect("clicked", func() {
-			log.Printf("wizard: Next clicked on step idx=%d k=%v len(keys)=%d", idx, k, len(keys))
-			if step.Capture != nil {
-				if err := step.Capture(state); err != nil {
-					log.Printf("wizard: Capture error: %v", err)
-					showError(win, err)
-					return
-				}
-			}
-			keys = chain()
-			log.Printf("wizard: rebuilt chain len=%d", len(keys))
-			if idx+1 >= len(keys) {
-				log.Printf("wizard: finish() called from click handler")
-				finish(state)
-				log.Printf("wizard: finish() returned, waiting for gtk.Main() to exit")
-				return
-			}
-			idx++
-			if err := showStepAt(); err != nil {
-				showError(win, err)
-			}
-		})
-		if step.Back != nil {
-			step.Back.Connect("clicked", func() {
-				keys = chain()
-				if idx > 0 {
-					idx--
-				}
-				if err := showStepAt(); err != nil {
-					showError(win, err)
-				}
-			})
-		}
-		return nil
-	}
-
-	if err := showStepAt(); err != nil {
+	if err := showStepAt(win, contentBox, &currentBox, state, registry, &keys, &idx, commit, finish); err != nil {
 		win.Destroy()
 		return nil, fmt.Errorf("wizard: build step %d: %w", idx, err)
 	}
