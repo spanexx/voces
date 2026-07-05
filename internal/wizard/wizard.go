@@ -99,26 +99,15 @@ func RunWelcome() (bool, error) {
 }
 
 // CID:wizard-004 - RunFull
-// Purpose: present the 4-5 step wizard (welcome → language → hotkey
-// → tts? → finish), block the calling goroutine on the GTK main loop,
-// and return the accumulated State when the user clicks "Start".
+// Purpose: present the 4-5 step wizard (welcome → language → hotkey →
+// tts? → finish), block on the GTK main loop, return the accumulated
+// State when the user clicks "Start" (or nil on window close).
 //
-// The runner walks a registry of step renderers. The chain is
-// rebuilt on every transition so a Back into language followed by
-// a switch from "en" to "de" inserts the TTS step on the way
-// forward (and vice versa).
-//
-// On Next click the runner:
-//   1. Calls step.Capture(state) to commit the user's choice.
-//   2. If Capture returns an error, the advance is aborted and the
-//      error is shown via a small dialog so the user can fix it.
-//   3. Otherwise the next step's box is added and shown.
-//
-// On Back click the previous step's box is re-shown (the prior step
-// is re-built so its widgets reflect the current State).
-//
-// On window close (X button) the runner returns nil and the state is
-// not committed.
+// The chain is rebuilt on every transition so a Back into language +
+// change of language inserts/removes the TTS step on the way forward.
+// On Next click: step.Capture(state) commits, then showStepAt swaps
+// in the next step's box inside the single contentBox wrapper.
+// On Back click: showStepAt rebuilds and re-shows the prior step.
 func RunFull() (*State, error) {
 	if err := ensureInit(); err != nil {
 		return nil, fmt.Errorf("wizard: gtk init: %w", err)
@@ -128,6 +117,17 @@ func RunFull() (*State, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// GtkWindow is a GtkBin (one direct child). Every step's box
+	// lives inside this single wrapper; showStepAt swaps them in
+	// and out, so the window itself only ever has one child and
+	// step transitions don't trigger the Gtk-WARNING.
+	contentBox, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
+	if err != nil {
+		win.Destroy()
+		return nil, fmt.Errorf("wizard: build content box: %w", err)
+	}
+	win.Add(contentBox)
 
 	state := NewState()
 	result := make(chan *State, 1)
@@ -163,6 +163,11 @@ func RunFull() (*State, error) {
 	idx := 0
 	keys := chain()
 
+	// currentBox tracks the step's box currently parented under
+	// contentBox. showStepAt removes it before adding the new one,
+	// so the wrapper (and the window) always has exactly one child.
+	var currentBox *gtk.Box
+
 	// showStepAt: declared as var + assignment (not := with the
 	// function literal) so the closure can recursively call itself.
 	var showStepAt func() error
@@ -175,7 +180,14 @@ func RunFull() (*State, error) {
 		if err != nil {
 			return err
 		}
-		win.Add(step.Box)
+		// Swap the step's box into the wrapper. Removing the
+		// previous box (if any) is what was missing — Hide() alone
+		// left it parented and triggered the GtkWindow warning.
+		if currentBox != nil {
+			contentBox.Remove(currentBox)
+		}
+		contentBox.Add(step.Box)
+		currentBox = step.Box
 		step.Box.ShowAll()
 
 		step.Next.Connect("clicked", func() {
@@ -185,7 +197,6 @@ func RunFull() (*State, error) {
 					return
 				}
 			}
-			step.Box.Hide()
 			keys = chain()
 			if idx+1 >= len(keys) {
 				select {
@@ -202,7 +213,6 @@ func RunFull() (*State, error) {
 		})
 		if step.Back != nil {
 			step.Back.Connect("clicked", func() {
-				step.Box.Hide()
 				keys = chain()
 				if idx > 0 {
 					idx--
@@ -220,11 +230,9 @@ func RunFull() (*State, error) {
 		return nil, fmt.Errorf("wizard: build step %d: %w", idx, err)
 	}
 
-	// Show the window + the first step. Without this call, gtk.Main()
-	// blocks indefinitely on a hidden window (the step box's ShowAll
-	// only marks the box and its children visible — the top-level
-	// GtkWindow stays hidden and nothing is rendered to the screen).
-	// Mirrors what RunWelcome does at the end of its setup.
+	// Show the window + the first step. ShowAll on step.Box alone
+	// doesn't render (the GtkWindow is still hidden). Mirrors
+	// what RunWelcome does at the end of its setup.
 	win.ShowAll()
 
 	win.Connect("destroy", func() {
