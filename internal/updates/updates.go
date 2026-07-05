@@ -1,9 +1,10 @@
 /* Code Map: Update Notifier — GitHub Releases Client
  * Files in this package:
- *   updates.go   - Release model, LatestRelease, asset pick/download
- *   semver.go    - IsNewer, parseSemver
- *   download.go  - Download (HTTP asset fetch to staged path)
- *   restart.go   - syscall.Exec helper that replaces the running process
+ *   updates.go        - Release model, LatestRelease, asset pick/download
+ *   semver.go         - IsNewer, IsPreRelease, parseSemver
+ *   suitable.go       - LatestSuitableRelease (rc1-hotpatch-20)
+ *   download.go       - Download (HTTP asset fetch to staged path)
+ *   restart.go        - syscall.Exec helper that replaces the running process
  *
  * CID Index:
  * CID:updates-001 -> Release
@@ -11,9 +12,11 @@
  * CID:updates-003 -> ErrNoRelease
  * CID:updates-004 -> LatestRelease
  * CID:updates-005 -> IsNewer             (semver.go)
- * CID:updates-006 -> Download            (download.go)
- * CID:updates-007 -> Restart             (restart.go)
- * CID:updates-008 -> StagedPath          (restart.go)
+ * CID:updates-005b -> IsPreRelease        (semver.go)
+ * CID:updates-006 -> LatestSuitableRelease (suitable.go)
+ * CID:updates-007 -> Download            (download.go)
+ * CID:updates-008 -> Restart             (restart.go)
+ * CID:updates-009 -> StagedPath          (restart.go)
  *
  * Quick lookup: rg -n "CID:updates-" internal/updates/
  */
@@ -56,7 +59,14 @@ type Release struct {
 	Name        string  `json:"name"`         // human label, e.g. "Voces 0.2.0"
 	HTMLURL     string  `json:"html_url"`     // link to the release page
 	PublishedAt string  `json:"published_at"` // ISO 8601; kept as string to avoid TZ surprises
-	Assets      []Asset `json:"assets"`
+	// Prerelease is true when the release was published via
+	// `gh release create --prerelease` (or the GitHub UI's
+	// "pre-release" checkbox). Used by LatestSuitableRelease to
+	// decide whether this release is a valid update candidate for
+	// the user's current version. GitHub's /releases/latest
+	// endpoint filters prereleases out; /releases returns them.
+	Prerelease bool    `json:"prerelease"`
+	Assets     []Asset `json:"assets"`
 	// Body is the release notes (markdown). Truncated in tray notifications.
 	Body string `json:"body"`
 }

@@ -52,16 +52,27 @@ const checkTimeout = 10 * time.Second
 // showNotification controls the user-facing summary:
 //   - true  → always show a notification, even when "you're up to date"
 //   - false → only show a notification when a new version is found
+//
+// rc1-hotpatch-20: switched from LatestRelease to
+// LatestSuitableRelease so the auto-updater sees prereleases for
+// pre-1.0 users. Without this, an rc1 user never sees rc6 as
+// "available" because GitHub's /releases/latest endpoint
+// excludes prereleases.
 func (a *Application) checkForUpdates(showNotification bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
 
-	rel, err := updates.LatestRelease(ctx)
+	rel, err := updates.LatestSuitableRelease(ctx, a.Version)
 	if err != nil {
-		// 404 is the "no releases yet" case for a fresh repo — don't
-		// treat it as an error the user needs to see.
+		// 404 / no suitable candidate is the "no updates available"
+		// case — log "up to date" and stay silent. Other errors are
+		// surfaced via a notification when the user clicked the
+		// menu item explicitly (showNotification=true).
 		if err == updates.ErrNoRelease {
-			log.Printf("checkForUpdates: no releases published yet")
+			log.Printf("checkForUpdates: up to date (current=%s)", a.Version)
+			if showNotification && a.Notifier != nil {
+				a.Notifier.Info("Up to date", "Latest is "+a.Version)
+			}
 			return
 		}
 		log.Printf("checkForUpdates: %v", err)

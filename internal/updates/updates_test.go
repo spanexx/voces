@@ -57,6 +57,7 @@ type ghRelease struct {
 	HTMLURL     string  `json:"html_url"`
 	PublishedAt string  `json:"published_at"`
 	Body        string  `json:"body"`
+	Prerelease  bool    `json:"prerelease"`
 	Assets      []Asset `json:"assets"`
 }
 
@@ -315,8 +316,179 @@ func TestLatestRelease_ContextCancelled(t *testing.T) {
 	}
 }
 
+// TestLatestSuitableRelease_IncludesPrereleasesForPre1User
+// (rc1-hotpatch-20): GitHub's /releases/latest endpoint excludes
+// prereleases, so a user on v0.2.0-rc1 never sees v0.2.0-rc6 as
+// an "update" — they're stuck. The new function hits /releases
+// (all) and applies the rule "if current is pre-1.0, prereleases
+// are valid candidates". The test server returns 4 releases all
+// marked prerelease; current=rc1; we expect the highest semver
+// (rc6).
+func TestLatestSuitableRelease_IncludesPrereleasesForPre1User(t *testing.T) {
+	releases := []ghRelease{
+		{TagName: "v0.2.0-rc1", Prerelease: true, HTMLURL: "https://example/rc1"},
+		{TagName: "v0.2.0-rc2", Prerelease: true, HTMLURL: "https://example/rc2"},
+		{TagName: "v0.2.0-rc5", Prerelease: true, HTMLURL: "https://example/rc5"},
+		{TagName: "v0.2.0-rc6", Prerelease: true, HTMLURL: "https://example/rc6"},
+	}
+	withTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(releases)
+	}))
+
+	got, err := LatestSuitableRelease(context.Background(), "v0.2.0-rc1")
+	if err != nil {
+		t.Fatalf("LatestSuitableRelease: %v", err)
+	}
+	if got == nil {
+		t.Fatal("got nil release; want v0.2.0-rc6")
+	}
+	if got.TagName != "v0.2.0-rc6" {
+		t.Errorf("TagName = %q, want %q", got.TagName, "v0.2.0-rc6")
+	}
+}
+
+// TestLatestSuitableRelease_SkipsPrereleasesForStableUser
+// (rc1-hotpatch-20): a user on a stable 1.x release should NOT be
+// offered 1.1.0-rc1 as an "update" — they only see stable
+// releases. The test server returns a stable 1.0.0, a 1.1.0-rc1,
+// and a stable 1.1.0; current=1.0.0; we expect 1.1.0.
+func TestLatestSuitableRelease_SkipsPrereleasesForStableUser(t *testing.T) {
+	releases := []ghRelease{
+		{TagName: "v1.0.0", Prerelease: false, HTMLURL: "https://example/1.0.0"},
+		{TagName: "v1.1.0-rc1", Prerelease: true, HTMLURL: "https://example/1.1.0-rc1"},
+		{TagName: "v1.1.0", Prerelease: false, HTMLURL: "https://example/1.1.0"},
+	}
+	withTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(releases)
+	}))
+
+	got, err := LatestSuitableRelease(context.Background(), "v1.0.0")
+	if err != nil {
+		t.Fatalf("LatestSuitableRelease: %v", err)
+	}
+	if got == nil {
+		t.Fatal("got nil release; want v1.1.0")
+	}
+	if got.TagName != "v1.1.0" {
+		t.Errorf("TagName = %q, want %q (must skip 1.1.0-rc1 for stable user)", got.TagName, "v1.1.0")
+	}
+}
+
+// TestLatestSuitableRelease_AllPrereleasesForStableUser
+// (rc1-hotpatch-20): if every release is a prerelease and the user
+// is on a stable version, return ErrNoRelease (nothing to offer).
+// We don't downgrade a stable user to a prerelease.
+func TestLatestSuitableRelease_AllPrereleasesForStableUser(t *testing.T) {
+	releases := []ghRelease{
+		{TagName: "v1.0.0-rc1", Prerelease: true},
+		{TagName: "v1.0.0-rc2", Prerelease: true},
+	}
+	withTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(releases)
+	}))
+
+	got, err := LatestSuitableRelease(context.Background(), "v1.0.0")
+	if err != ErrNoRelease {
+		t.Errorf("err = %v, want ErrNoRelease", err)
+	}
+	if got != nil {
+		t.Errorf("got = %+v, want nil", got)
+	}
+}
+
+// TestLatestSuitableRelease_NoNewerRelease (rc1-hotpatch-20): if
+// the user is on the latest release, return ErrNoRelease so the
+// caller logs "up to date" instead of offering a downgrade.
+func TestLatestSuitableRelease_NoNewerRelease(t *testing.T) {
+	releases := []ghRelease{
+		{TagName: "v0.2.0-rc6", Prerelease: true},
+		{TagName: "v0.2.0-rc5", Prerelease: true},
+	}
+	withTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(releases)
+	}))
+
+	got, err := LatestSuitableRelease(context.Background(), "v0.2.0-rc6")
+	if err != ErrNoRelease {
+		t.Errorf("err = %v, want ErrNoRelease", err)
+	}
+	if got != nil {
+		t.Errorf("got = %+v, want nil", got)
+	}
+}
+
+// TestIsPreRelease (rc1-hotpatch-20): semver "unstable" detection.
+// Returns true for any version the user might want prerelease
+// updates for: pre-1.0 majors (0.x.y) OR a version with a
+// pre-release suffix (1.0.0-rc1). A plain 1.0.0 / 1.2.3 is
+// stable — those users skip prereleases.
+func TestIsPreRelease(t *testing.T) {
+	cases := []struct {
+		version string
+		want    bool
+	}{
+		{"v0.2.0-rc1", true},
+		{"v0.2.0", true},
+		{"0.2.0-rc1", true},
+		{"0.2.0", true},
+		{"v1.0.0-rc1", true},
+		{"v1.2.3-rc1", true},
+		{"v1.0.0", false},
+		{"v1.2.3", false},
+		{"v2.0.0", false},
+		{"dev", false},
+		{"", false},
+		{"garbage", false},
+	}
+	for _, c := range cases {
+		t.Run(c.version, func(t *testing.T) {
+			if got := IsPreRelease(c.version); got != c.want {
+				t.Errorf("IsPreRelease(%q) = %v, want %v", c.version, got, c.want)
+			}
+		})
+	}
+}
+
 // itoa is a tiny stdlib-free int→string helper used in the download
 // test. We avoid strconv here to keep the test imports tight.
+
+// CID:updates-test-011 - TestIsNewer_PrereleaseSemver
+// Purpose (rc1-hotpatch-20): the semver compare now honours
+// prerelease suffixes. A version on the same [major, minor,
+// patch] but with a higher rc number IS newer, and a version
+// with a prerelease is strictly LESS than the corresponding
+// stable version (per semver §11). Without this, an rc1 user
+// can never see rc2/rc3/.../rc6 as an update even after the
+// auto-updater learns to ask /releases for them.
+func TestIsNewer_PrereleaseSemver(t *testing.T) {
+	cases := []struct {
+		name           string
+		rel            string
+		currentVersion string
+		want           bool
+	}{
+		{"rc5 newer than rc2", "v0.2.0-rc5", "v0.2.0-rc2", true},
+		{"rc2 NOT newer than rc5", "v0.2.0-rc2", "v0.2.0-rc5", false},
+		{"rc1 NOT newer than rc1", "v0.2.0-rc1", "v0.2.0-rc1", false},
+		{"rc6 NOT newer than stable 0.2.0", "v0.2.0-rc6", "v0.2.0", false},
+		{"stable 0.2.0 newer than rc6", "v0.2.0", "v0.2.0-rc6", true},
+		{"0.2.1 newer than 0.2.0", "v0.2.1", "v0.2.0", true},
+		{"0.2.0-rc1 newer than 0.1.9", "v0.2.0-rc1", "v0.1.9", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := &Release{TagName: c.rel}
+			if got := r.IsNewer(c.currentVersion); got != c.want {
+				t.Errorf("IsNewer(%q, %q) = %v, want %v",
+					c.rel, c.currentVersion, got, c.want)
+			}
+		})
+	}
+}
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

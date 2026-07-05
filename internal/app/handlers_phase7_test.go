@@ -89,12 +89,20 @@ type ghReleaseBody struct {
 // CID:app-handlers-phase7-test-001 - TestCheckForUpdates_NewerShowsBadge
 // Purpose: a release newer than a.Version should be stored on the
 // Application and trigger SetUpdateBadge on the tray.
+//
+// rc1-hotpatch-20: the auto-updater now calls LatestSuitableRelease
+// (not LatestRelease), so the test server must return a JSON
+// ARRAY matching the GitHub /releases endpoint. Single-object
+// bodies fail to decode.
 func TestCheckForUpdates_NewerShowsBadge(t *testing.T) {
 	a := buildMinimalApp(t)
-	withFakeGitHub(t, fakeGitHubHandler(t, map[string]interface{}{
-		"tag_name": "v0.3.0",
-		"name":     "0.3.0",
-		"html_url": "https://example.com/v0.3.0",
+	withFakeGitHub(t, fakeGitHubHandler(t, []map[string]interface{}{
+		{
+			"tag_name":   "v0.3.0",
+			"name":       "0.3.0",
+			"html_url":   "https://example.com/v0.3.0",
+			"prerelease": false,
+		},
 	}))
 
 	a.checkForUpdates(false) // silent on the happy path; assertion
@@ -106,20 +114,32 @@ func TestCheckForUpdates_NewerShowsBadge(t *testing.T) {
 }
 
 // CID:app-handlers-phase7-test-002 - TestCheckForUpdates_UpToDateHidesBadge
-// Purpose: when the latest release equals the current version, the
-// release is still stored (so the UI can show "up to date" later)
-// but ClearUpdateBadge is called.
+// Purpose: when the latest release equals the current version, no
+// "update" candidate exists. LatestSuitableRelease returns
+// ErrNoRelease, the user is notified "Up to date" via the
+// notification path, and GetLatestRelease stays nil so the tray
+// badge stays clear.
+//
+// Behavior change (rc1-hotpatch-20): the previous LatestRelease
+// always returned the most recent published release even when
+// it equalled the current version. LatestSuitableRelease
+// (correctly) only stores releases that would constitute a real
+// update. The tray's "Latest is X" line now comes from the
+// "Up to date" notification, not from a stored Release.
 func TestCheckForUpdates_UpToDateHidesBadge(t *testing.T) {
 	a := buildMinimalApp(t)
 	a.Version = "0.2.0"
-	withFakeGitHub(t, fakeGitHubHandler(t, map[string]interface{}{
-		"tag_name": "v0.2.0",
-		"name":     "0.2.0",
+	withFakeGitHub(t, fakeGitHubHandler(t, []map[string]interface{}{
+		{
+			"tag_name":   "v0.2.0",
+			"name":       "0.2.0",
+			"prerelease": false,
+		},
 	}))
 
 	a.checkForUpdates(false)
-	if got := a.GetLatestRelease(); got == nil || got.TagName != "v0.2.0" {
-		t.Errorf("GetLatestRelease = %+v, want TagName v0.2.0", got)
+	if got := a.GetLatestRelease(); got != nil {
+		t.Errorf("GetLatestRelease = %+v, want nil when up to date (rc1-hotpatch-20)", got)
 	}
 }
 
