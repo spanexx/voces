@@ -1,19 +1,15 @@
-/* Code Map: setup.Apply
- * - Apply: writes state.json + config.yaml in one call. Preserves
- *   user-set binary paths from a pre-existing config.yaml so a
- *   pre-wizard install isn't reset when the user runs setup.
- * - generatedConfig: the on-disk layout we write. Kept here (not in
- *   internal/config) so the wizard owns the post-setup shape and the
- *   legacy /opt/... defaults can be removed in Phase 9.
- * - preserveBinaryPath: the "user wins" rule — only fill in the engine
- *   binary path if the pre-existing config had it empty.
+/*
+ * Code Map: setup.Apply orchestrator
+ * - Apply: writes state.json + config.yaml in one call
+ * - configPath: $XDG_CONFIG_HOME/voces/config.yaml (HOME fallback)
+ * - buildConfigDoc: assembles YAML body, calls preserve* helpers
  *
  * CID Index:
  * CID:setup-apply-001 -> Apply
- * CID:setup-apply-002 -> generatedConfig
- * CID:setup-apply-003 -> preserveBinaryPath
+ * CID:setup-apply-002 -> configPath
+ * CID:setup-apply-003 -> buildConfigDoc
  *
- * Quick lookup: rg -n "CID:setup-apply-" internal/setup/
+ * Quick lookup: rg -n "CID:setup-apply-" internal/setup/apply.go
  */
 package setup
 
@@ -23,20 +19,25 @@ import (
 	"path/filepath"
 
 	"go.yaml.in/yaml/v3"
-
-	"voces/internal/paths"
 )
 
 // CID:setup-apply-001 - Apply
-// Purpose: persists the wizard result to disk. Writes state.json via
-// the existing Save (atomic .tmp + rename) and writes a fresh
-// config.yaml with model paths derived from the state and engine
-// binary paths from paths.EnginesDir(). Pre-existing user-set binary
-// paths in config.yaml are preserved (IMPL §3 Phase 5 contract).
+// Purpose: persist the wizard result to disk (state.json first,
+// then config.yaml). Single entry point for the wizard's commit
+// step.
+// Uses: Save (state), defaultConfigFor, preserveBinaryPath,
+// preserveHotkeys, loadConfigRaw, configPath.
+// Used by: cmd/voces/main.go (wizard commit step), test suite.
+
+// Apply persists the wizard result to disk. Writes state.json
+// (atomic .tmp + rename) and a fresh config.yaml with model paths
+// derived from the state and engine binary paths from
+// paths.EnginesDir(). Pre-existing user-set binary paths and
+// secondary hotkey fields are preserved (IMPL §3 Phase 5 contract).
 //
-// Returns the first error encountered. State.json is written first
-// so a partial failure leaves a recoverable record of what the user
-// picked, even if config.yaml write fails.
+// State.json is written first so a partial failure leaves a
+// recoverable record of what the user picked, even if config.yaml
+// write fails.
 func Apply(s *State, _ *Manifest) error {
 	if s == nil {
 		return fmt.Errorf("Apply: state is nil")
@@ -55,15 +56,19 @@ func Apply(s *State, _ *Manifest) error {
 	if err != nil {
 		return fmt.Errorf("Apply: build config: %w", err)
 	}
-	if err := os.WriteFile(cfgPath, doc, 0o644); err != nil {
-		return fmt.Errorf("Apply: write config: %w", err)
-	}
-	return nil
+	return os.WriteFile(cfgPath, doc, 0o644)
 }
 
+// CID:setup-apply-002 - configPath
+// Purpose: resolve the canonical config.yaml path under
+// $XDG_CONFIG_HOME/voces. The single source of truth for the
+// on-disk path.
+// Uses: os.Getenv.
+// Used by: Apply, buildConfigDoc.
+
 // configPath returns the canonical config.yaml path under
-// $XDG_CONFIG_HOME/voces. Falls back to the XDG default
-// (UserConfigDir) when XDG_CONFIG_HOME is unset.
+// $XDG_CONFIG_HOME/voces. Falls back to ~/.config/voces when
+// XDG_CONFIG_HOME is unset.
 func configPath() (string, error) {
 	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
 		return filepath.Join(v, "voces", "config.yaml"), nil
@@ -71,161 +76,26 @@ func configPath() (string, error) {
 	return filepath.Join(os.Getenv("HOME"), ".config", "voces", "config.yaml"), nil
 }
 
-// CID:setup-apply-002 - generatedConfig
-// Purpose: the on-disk YAML layout. Mirrors the config.Config struct
-// from internal/config but only the fields Apply needs to set. Kept
-// local so this package stays the source of truth for the
-// post-wizard shape.
-type generatedConfig struct {
-	Transcription transcriptionBlock `yaml:"transcription"`
-	TTS           ttsBlock           `yaml:"tts"`
-}
+// CID:setup-apply-003 - buildConfigDoc
+// Purpose: assemble the YAML body. Bridges defaults.go and
+// preserve.go — generates the wizard's defaults, then layers
+// pre-existing user values on top.
+// Uses: defaultConfigFor, preserveBinaryPath, preserveHotkeys,
+// loadConfigRaw, yaml.Marshal.
+// Used by: Apply.
 
-type transcriptionBlock struct {
-	DefaultEngine string          `yaml:"default_engine"`
-	WhisperCPP    whisperCPPBlock `yaml:"whisper_cpp"`
-	OpenAIAPI     openAIAPIBlock  `yaml:"openai_api"`
-}
-
-type whisperCPPBlock struct {
-	BinaryPath  string `yaml:"binary_path"`
-	Model       string `yaml:"model"`
-	Language    string `yaml:"language"`
-	ComputeType string `yaml:"compute_type"`
-}
-
-type openAIAPIBlock struct {
-	APIKey string `yaml:"api_key"`
-	Model  string `yaml:"model"`
-	Prompt string `yaml:"prompt"`
-}
-
-type ttsBlock struct {
-	DefaultEngine string          `yaml:"default_engine"`
-	Piper         piperBlock      `yaml:"piper"`
-	ElevenLabs    elevenLabsBlock `yaml:"elevenlabs"`
-}
-
-type piperBlock struct {
-	BinaryPath   string `yaml:"binary_path"`
-	Model        string `yaml:"model"`
-	VoiceConfig  string `yaml:"voice_config"`
-	OutputDevice string `yaml:"output_device"`
-}
-
-type elevenLabsBlock struct {
-	APIKey          string  `yaml:"api_key"`
-	VoiceID         string  `yaml:"voice_id"`
-	Model           string  `yaml:"model"`
-	Stability       float64 `yaml:"stability"`
-	SimilarityBoost float64 `yaml:"similarity_boost"`
-}
-
-// buildConfigDoc assembles the YAML body. Loads the pre-existing file
-// (if any) so user-set binary paths are preserved.
+// buildConfigDoc assembles the YAML body. Loads the pre-existing
+// file (if any) so user-set binary paths and secondary hotkey
+// fields are preserved.
 func buildConfigDoc(s *State, cfgPath string) ([]byte, error) {
 	cfg := defaultConfigFor(s)
-
-	// Preserve pre-existing user paths.
 	if existing, err := loadConfigRaw(cfgPath); err == nil {
 		preserveBinaryPath(&cfg, existing)
+		preserveHotkeys(&cfg, existing)
 	}
-
 	out, err := yaml.Marshal(cfg)
 	if err != nil {
 		return nil, err
 	}
-	// Prepend a header comment so the file is recognisable.
 	return append([]byte("# Voces — generated by setup wizard\n"), out...), nil
-}
-
-// defaultConfigFor populates the wizard-derived values: model paths
-// from state, engine binary paths from paths.EnginesDir(). Returns
-// an empty config (no model set) if paths.EnginesDir fails — the
-// caller can still write the file and the user can fix it.
-func defaultConfigFor(s *State) generatedConfig {
-	engines, _ := paths.EnginesDir()
-	whisperBin := filepath.Join(engines, "whisper-cli")
-	piperBin := filepath.Join(engines, "piper")
-	whisperModel, _ := paths.WhisperModelPath(s.WhisperModel)
-	piperModel, _ := paths.PiperVoicePath(s.PiperVoice)
-	piperVoiceCfg := ""
-	if s.PiperVoice != "" {
-		piperVoiceCfg = piperModel + ".json"
-	}
-
-	return generatedConfig{
-		Transcription: transcriptionBlock{
-			DefaultEngine: "whisper_cpp",
-			WhisperCPP: whisperCPPBlock{
-				BinaryPath:  whisperBin,
-				Model:       whisperModel,
-				Language:    s.Language,
-				ComputeType: "float",
-			},
-			OpenAIAPI: openAIAPIBlock{
-				APIKey: "${OPENAI_API_KEY}",
-				Model:  "whisper-1",
-				Prompt: "",
-			},
-		},
-		TTS: ttsBlock{
-			DefaultEngine: "piper",
-			Piper: piperBlock{
-				BinaryPath:   piperBin,
-				Model:        piperModel,
-				VoiceConfig:  piperVoiceCfg,
-				OutputDevice: "",
-			},
-			ElevenLabs: elevenLabsBlock{
-				APIKey:          "${ELEVENLABS_API_KEY}",
-				VoiceID:         "21m00Tcm4TlvDq8ikWAM",
-				Model:           "eleven_monolingual_v1",
-				Stability:       0.5,
-				SimilarityBoost: 0.75,
-			},
-		},
-	}
-}
-
-// CID:setup-apply-003 - preserveBinaryPath
-// Purpose: the "user wins" rule. If the pre-existing config had a
-// non-empty binary_path for either engine, keep that value and skip
-// the wizard's default. The wizard's model path is always filled in
-// (it is the source of truth for which model the user picked).
-func preserveBinaryPath(cfg *generatedConfig, existing map[string]any) {
-	// Transcription.whisper_cpp.binary_path
-	if t, ok := existing["transcription"].(map[string]any); ok {
-		if w, ok := t["whisper_cpp"].(map[string]any); ok {
-			if v, ok := w["binary_path"].(string); ok && v != "" {
-				cfg.Transcription.WhisperCPP.BinaryPath = v
-			}
-		}
-	}
-	// TTS.piper.binary_path
-	if t, ok := existing["tts"].(map[string]any); ok {
-		if p, ok := t["piper"].(map[string]any); ok {
-			if v, ok := p["binary_path"].(string); ok && v != "" {
-				cfg.TTS.Piper.BinaryPath = v
-			}
-		}
-	}
-}
-
-// loadConfigRaw reads the existing config.yaml into a generic map.
-// Returns an empty map (not an error) when the file is missing —
-// that is the "first run" case. Real parse errors propagate.
-func loadConfigRaw(cfgPath string) (map[string]any, error) {
-	data, err := os.ReadFile(cfgPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]any{}, nil
-		}
-		return nil, err
-	}
-	var raw map[string]any
-	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return nil, err
-	}
-	return raw, nil
 }
