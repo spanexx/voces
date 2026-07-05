@@ -1,8 +1,10 @@
 package transcription
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"voces/internal/config"
@@ -67,5 +69,35 @@ func TestTranscribe_OpenAIAPI_NoAPIKey(t *testing.T) {
 	_, err := transcriber.Transcribe("/tmp/test.wav")
 	if err == nil {
 		t.Error("Expected error when API key not configured")
+	}
+}
+
+// TestFormatWhisperEmptyOutput (rc1-hotpatch-14 R3) verifies
+// the helper that splits the "empty output" case into the
+// no-speech-detected sentinel vs a wrapped error with the
+// underlying stderr text. The old single-line error conflated
+// the two and was impossible for the tray to branch on.
+func TestFormatWhisperEmptyOutput(t *testing.T) {
+	// Case 1: empty stdout and empty stderr → no-speech sentinel
+	err := formatWhisperEmptyOutput("/bin/whisper", "", "")
+	if !errors.Is(err, ErrNoSpeechDetected) {
+		t.Errorf("empty/empty → want ErrNoSpeechDetected, got %v", err)
+	}
+	// Case 2: empty stdout but stderr has the real error → wrapped
+	// error with the stderr text (truncated to 200 chars for
+	// the notification).
+	stderr := "model load failed: cannot open ggml-small.en.bin"
+	err = formatWhisperEmptyOutput("/bin/whisper", "", stderr)
+	if errors.Is(err, ErrNoSpeechDetected) {
+		t.Errorf("empty/non-empty → should NOT be ErrNoSpeechDetected, got %v", err)
+	}
+	if !strings.Contains(err.Error(), stderr) {
+		t.Errorf("stderr text should appear in error message: got %q", err.Error())
+	}
+	// Case 3: truncation. A 500-char stderr is cut to 200 + "...".
+	long := strings.Repeat("a", 500)
+	err = formatWhisperEmptyOutput("/bin/whisper", "", long)
+	if !strings.Contains(err.Error(), "... (truncated)") {
+		t.Errorf("long stderr should be truncated: got %q", err.Error())
 	}
 }

@@ -116,6 +116,38 @@ func formatWhisperError(binary string, args []string, err error, stdout, stderr 
 	return fmt.Errorf("whisper.cpp failed: %w (binary=%s, args=%s), output: %s", err, binary, strings.Join(args, " "), msg)
 }
 
+// CID:transcription-whisper-output-008 - formatWhisperEmptyOutput
+// Purpose: build the "no transcription text was produced" error.
+// Distinguishes two cases the previous single-line error
+// conflated:
+//   - "no speech detected" — stdout and stderr are both empty.
+//     whisper.cpp returned 0 and wrote no .txt file. The
+//     microphone captured silence or the user released the
+//     hotkey without speaking. This is benign; the tray
+//     notification should say "I didn't catch that — try
+//     again" rather than "transcription failed".
+//   - "binary failed" — stdout is empty but stderr is not.
+//     whisper.cpp likely returned non-zero (model load error,
+//     unsupported audio format, OOM, etc.). The underlying
+//     error is the stderr text, which the user actually
+//     needs to see to debug. Truncates to 200 chars so the
+//     notification does not get spammed by a 4 MB backtrace.
+//
+// rc1-hotpatch-14 R3: replaces the previous
+// "whisper.cpp produced no transcription output (binary=...)"
+// string which gave the user no actionable information.
+func formatWhisperEmptyOutput(binary, stdout, stderr string) error {
+	errMsg := strings.TrimSpace(stderr)
+	if errMsg == "" {
+		return ErrNoSpeechDetected
+	}
+	const max = 200
+	if len(errMsg) > max {
+		errMsg = errMsg[:max] + "... (truncated)"
+	}
+	return fmt.Errorf("whisper.cpp produced no transcription output (binary=%s): %s", binary, errMsg)
+}
+
 // CID:transcription-whisper-output-006 - shouldFallbackToMain
 func shouldFallbackToMain(err error, stderr string) bool {
 	if err == nil {

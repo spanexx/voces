@@ -171,7 +171,14 @@ parse:
 	clean = stripWhisperMainDeprecationWarning(clean)
 	clean = strings.TrimSpace(stripWhisperTimestamps(clean))
 	if clean == "" {
-		return "", fmt.Errorf("whisper.cpp produced no transcription output (binary=%s)", executedBinary)
+		// rc1-hotpatch-14 R3: distinguish "no speech detected"
+		// (whisper produced no text and no error — user said
+		// nothing during the recording) from "binary failed"
+		// (whisper produced no text but printed an error to
+		// stderr). The tray notification now reads the right
+		// copy and the log gets the underlying stderr instead
+		// of a generic "(binary=...)" string.
+		return "", formatWhisperEmptyOutput(executedBinary, stdout.String(), stderr.String())
 	}
 	return clean, nil
 }
