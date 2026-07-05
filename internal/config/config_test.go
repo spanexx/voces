@@ -371,7 +371,75 @@ func TestCreateDefaultConfig(t *testing.T) {
 	// Verify file was created
 	configPath := filepath.Join(tmpDir, "config.yaml")
 	if _, err := os.Stat(configPath); err != nil {
-		t.Errorf("Config file was not created at %s", configPath)
+		t.Errorf("Config file was not created at %s", err)
+	}
+}
+
+// TestCreateDefaultConfig_CompleteBehaviorAndHotkeys (rc1-hotpatch-15)
+// is the regression test for the gap rc1-hotpatch-14 left behind:
+// the wizard's defaultConfigFor was extended to write the full
+// behavior block (including autostart / autostart_delay) and all
+// four secondary hotkey fields, but the runtime template in
+// createDefaultConfig was not updated. Any code path that takes
+// the runtime default (Load() with no config.yaml on disk, a
+// hand-edited config that pre-dates hotpatch-14, or a tarball
+// install where the wizard was skipped) unmarshaled the missing
+// fields as Go zero values — autostart=false, notifications=true
+// only by accident, type_delay=0 — and the user saw "Autostart:
+// desired=false" / "notify: system disabled in config" in the
+// logs on a fresh install.
+//
+// The runtime default template must therefore carry the same
+// behavior + hotkey fields as the wizard's generated config.
+func TestCreateDefaultConfig_CompleteBehaviorAndHotkeys(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	if err := createDefaultConfig(tmpDir); err != nil {
+		t.Fatalf("createDefaultConfig: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(tmpDir, "config.yaml"))
+	if err != nil {
+		t.Fatalf("read config.yaml: %v", err)
+	}
+	body := string(data)
+
+	// Behavior: every field on internal/config.BehaviorConfig
+	// must be present in the runtime default. Values mirror
+	// createDefaultConfig's template; the test will fail loudly
+	// if a new field is added to the struct but not to the
+	// template (or vice versa).
+	wantBehavior := []string{
+		"auto_type: true",
+		"type_delay: 15",
+		"sound_on_start: false",
+		"sound_on_end: false",
+		"notifications: true",
+		"autostart: false",
+		"autostart_delay: 5",
+	}
+	for _, want := range wantBehavior {
+		if !strings.Contains(body, want) {
+			t.Errorf("config.yaml missing behavior %q\n---\n%s\n---", want, body)
+		}
+	}
+
+	// Hotkeys: every field on internal/config.HotkeysConfig
+	// must be present. stop_recording is intentionally empty
+	// in the default (the hold-binding model re-uses the
+	// record key to stop), but the field must still appear so
+	// preserveHotkeys / hotkey subsystem see it.
+	wantHotkeys := []string{
+		"record_and_type: '<rightctrl>+<left>'",
+		"stop_recording: ''",
+		"read_clipboard: '<f10>'",
+		"toggle_tts: '<f11>'",
+		"toggle_transcription: '<f12>'",
+	}
+	for _, want := range wantHotkeys {
+		if !strings.Contains(body, want) {
+			t.Errorf("config.yaml missing hotkey %q\n---\n%s\n---", want, body)
+		}
 	}
 }
 

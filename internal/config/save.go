@@ -5,6 +5,7 @@
  * CID Index:
  * CID:config-save-001 -> Save
  * CID:config-save-002 -> createDefaultConfig
+ * CID:config-save-003 -> defaultConfigTemplate (rc1-hotpatch-15)
  *
  * Quick lookup: rg -n "CID:config-save-" internal/config/save.go
  */
@@ -139,6 +140,8 @@ behavior:
   sound_on_start: false
   sound_on_end: false
   notifications: true
+  autostart: false
+  autostart_delay: 5
 `
 
 	if err := os.WriteFile(configPath, []byte(defaultConfig), 0o644); err != nil {
