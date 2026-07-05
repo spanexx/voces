@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// CID:config-defaults-001 - runtimeDefaults
+// CID:config-defaults-001 - RuntimeDefaultsForMigrations
 // Purpose: declare viper defaults for fields that older wizards
 // (pre-rc1-hotpatch-14) did not write. Without these, a config
 // written by v0.2.0-rc1's wizard unmarshals behavior.notifications
@@ -40,7 +40,15 @@ import (
 // model re-uses record_and_type to stop, so an empty default is
 // the correct contract, not a missing default.
 // Uses: (none — leaf function).
-// Used by: Load.
+// Used by: Load, cmd/voces-migrate-config.
+func RuntimeDefaultsForMigrations(v *viper.Viper) {
+	runtimeDefaults(v)
+}
+
+// runtimeDefaults is the unexported alias kept so internal
+// call sites can keep using the short name. External callers
+// (the migrator) go through RuntimeDefaultsForMigrations
+// which is the same function with the documented contract.
 func runtimeDefaults(v *viper.Viper) {
 	// Behavior (rc1-hotpatch-14/15 contract). Every field on
 	// internal/config.BehaviorConfig gets a default so a config
