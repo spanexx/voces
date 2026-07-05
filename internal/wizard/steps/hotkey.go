@@ -83,7 +83,7 @@ func BuildHotkey(win *gtk.Window, stateReader StateReader) (*Step, error) {
 	if err != nil {
 		return nil, fmt.Errorf("hotkey: custom entry: %w", err)
 	}
-	customEntry.SetPlaceholderText("Press a key combination...")
+	customEntry.SetPlaceholderText("Press a key combination (e.g. F9, Ctrl+Space)")
 	customEntry.SetEditable(true)
 	customEntry.SetNoShowAll(true)
 	customEntry.Hide()

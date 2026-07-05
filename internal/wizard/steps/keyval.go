@@ -5,6 +5,12 @@
  * - keyvalToString: returns a human-readable label for a GDK keyval.
  *   Falls back to the unicode character for printable keys, then to
  *   a hex form for unknown specials. Never returns the empty string.
+ * - IsModifierKeyval: true for the pure modifier keyvals (Shift,
+ *   Ctrl, Alt, Super, Caps Lock). The hotkey capture widget uses
+ *   this to ignore modifier-only presses.
+ * - BuildCombo: turn a (modifier state, base keyval) pair from a
+ *   key-press event into the canonical "<mod>+<base>" string the
+ *   hotkey parser understands. Pure function, exported for testing.
  *
  * The keyval→name mapping is split out from hotkey.go to keep that
  * file under the 250-line size cap.
@@ -12,6 +18,8 @@
  * CID Index:
  * CID:wizard-keyval-001 -> keyvalNames
  * CID:wizard-keyval-002 -> keyvalToString
+ * CID:wizard-keyval-003 -> IsModifierKeyval
+ * CID:wizard-keyval-004 -> BuildCombo
  *
  * Quick lookup: rg -n "CID:wizard-keyval-" internal/wizard/steps/
  */
@@ -19,6 +27,7 @@ package steps
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gotk3/gotk3/gdk"
 )
@@ -27,6 +36,12 @@ import (
 // Purpose: reverse of gdk.KeyvalFromName. The F-keys are added by
 // init() so the static map below stays readable.
 var keyvalNames = map[uint]string{
+	0x0008: "BackSpace",
+	0x0009: "Tab",
+	0x000a: "Return",
+	0x000d: "Return",
+	0x001b: "Escape",
+	0x0020: "space",
 	0xff08: "BackSpace",
 	0xff09: "Tab",
 	0xff0d: "Return",
@@ -87,4 +102,62 @@ func keyvalToString(k uint) string {
 		return string(r)
 	}
 	return fmt.Sprintf("0x%04x", k)
+}
+
+// CID:wizard-keyval-003 - IsModifierKeyval
+// Purpose: tells the hotkey capture widget whether a given keyval
+// is a pure modifier (Shift, Ctrl, Alt, Super, Caps Lock). Modifier
+// presses without a base key should be ignored by the capture
+// handler — the user is still building a combination, not finishing
+// one. Caps Lock and Shift Lock are also returned (they're toggle
+// modifiers, not held keys, so we never want them in a combo).
+func IsModifierKeyval(k uint) bool {
+	switch k {
+	case 0xffe1, 0xffe2, // Shift_L, Shift_R
+		0xffe3, 0xffe4, // Control_L, Control_R
+		0xffe5, 0xffe6, // Caps_Lock, Shift_Lock
+		0xffe9, 0xffea, // Alt_L, Alt_R
+		0xffeb, 0xffec: // Super_L, Super_R
+		return true
+	}
+	return false
+}
+
+// CID:wizard-keyval-004 - BuildCombo
+// Purpose: turn a (modifier state, base keyval) pair captured from
+// a key-press event into the canonical "<mod>+<base>" string the
+// hotkey parser understands (e.g., "ctrl+shift+f9", "f8", "a").
+//
+// Behavior:
+//   - Modifier-only keyvals (per IsModifierKeyval) return "" so the
+//     caller can ignore them and wait for the user to press a
+//     non-modifier key.
+//   - Modifier order is fixed: ctrl, super, alt, shift, then the
+//     base. This keeps the display stable across presses and the
+//     parser is order-insensitive anyway.
+//   - The base is lowercased (parser is case-insensitive on both
+//     modifier and F-key tokens).
+//   - Printable keys come from gdk.KeyvalToUnicode; the
+//     hotkey parser passes unknown tokens through as-is so this
+//     round-trips for "a", "1", "space" etc.
+func BuildCombo(modState gdk.ModifierType, keyval uint) string {
+	if IsModifierKeyval(keyval) {
+		return ""
+	}
+	base := strings.ToLower(keyvalToString(keyval))
+	mods := make([]string, 0, 4)
+	if modState&gdk.CONTROL_MASK != 0 {
+		mods = append(mods, "ctrl")
+	}
+	if modState&gdk.MOD4_MASK != 0 {
+		mods = append(mods, "super")
+	}
+	if modState&gdk.MOD1_MASK != 0 {
+		mods = append(mods, "alt")
+	}
+	if modState&gdk.SHIFT_MASK != 0 {
+		mods = append(mods, "shift")
+	}
+	mods = append(mods, base)
+	return strings.Join(mods, "+")
 }
