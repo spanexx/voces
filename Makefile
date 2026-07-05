@@ -174,6 +174,13 @@ vendor/whisper.cpp:
 
 whispercpp-build: vendor/whisper.cpp
 	@echo "🔨 Building whisper.cpp (managed)..."
+	# Wipe any stale build dir. CMake's cache embeds absolute
+	# paths, so if the project was ever at a different parent
+	# directory the cache will fail with a "directory is different
+	# than where it was created" error. rm -rf is the simplest
+	# recovery; release builds are infrequent so the rebuild
+	# cost is fine. Dev iteration should call cmake manually.
+	@rm -rf vendor/whisper.cpp/build
 	@mkdir -p vendor/whisper.cpp/build
 	@cmake -S vendor/whisper.cpp -B vendor/whisper.cpp/build -DWHISPER_BUILD_EXAMPLES=ON -DBUILD_SHARED_LIBS=ON
 	@cmake --build vendor/whisper.cpp/build -j
