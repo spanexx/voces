@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -58,6 +59,7 @@ var NopProgress ProgressFunc = func(float64, int64, int64) {}
 // it; a mismatch is a permanent error and the .partial is removed.
 // ctx is honored for both backoff sleeps and the in-flight request.
 func Download(ctx context.Context, url, destPath, sha256Hex string, progress ProgressFunc) error {
+	log.Printf("download: starting url=%s dest=%s", url, destPath)
 	if url == "" {
 		return errors.New("download: empty url")
 	}
@@ -77,6 +79,7 @@ func Download(ctx context.Context, url, destPath, sha256Hex string, progress Pro
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		if attempt > 1 {
+			log.Printf("download: retry %d/%d after backoff", attempt, maxAttempts)
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -89,11 +92,14 @@ func Download(ctx context.Context, url, destPath, sha256Hex string, progress Pro
 
 		err := doAttempt(ctx, url, partialPath, sha256Hex, progress)
 		if err == nil {
+			log.Printf("download: success, renaming to %s", destPath)
 			return os.Rename(partialPath, destPath)
 		}
 		if !isRetryable(err) {
+			log.Printf("download: permanent error: %v", err)
 			return err
 		}
+		log.Printf("download: retryable error: %v", err)
 		lastErr = err
 	}
 	return fmt.Errorf("download: gave up after %d attempts: %w", maxAttempts, lastErr)

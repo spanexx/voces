@@ -52,8 +52,10 @@ func maybeRunSetup(forceSetup bool) (didRun bool, err error) {
 		return false, fmt.Errorf("dispatch setup: %w", err)
 	}
 	if !shouldRun {
+		log.Printf("main: wizard skipped (no setup needed)")
 		return false, nil
 	}
+	log.Printf("main: wizard starting (force=%v)", forceSetup)
 	wizState, err := wizard.RunFull()
 	if err != nil {
 		return true, fmt.Errorf("wizard: %w", err)
@@ -64,18 +66,23 @@ func maybeRunSetup(forceSetup bool) (didRun bool, err error) {
 		log.Println("Setup cancelled by user; exiting.")
 		os.Exit(0)
 	}
+	log.Printf("main: wizard returned: lang=%s hotkey=%s/%s tts=%v",
+		wizState.Language, wizState.HotkeyPreset, wizState.CustomHotkey, wizState.TTSEnabled)
 	state := wizardcli.StateFromWizard(wizState, Version)
 
 	manifest, mErr := loadManifest()
 	if mErr != nil {
 		return true, fmt.Errorf("load manifest: %w", mErr)
 	}
+	log.Printf("main: starting model download (model=%s, piper=%q)", state.WhisperModel, state.PiperVoice)
 	if err := setup.EnsureModels(context.Background(), state, manifest, nil); err != nil {
 		return true, fmt.Errorf("download models: %w", err)
 	}
+	log.Printf("main: model download complete, writing state + config")
 	if err := setup.Apply(state, manifest); err != nil {
 		return true, fmt.Errorf("apply setup: %w", err)
 	}
+	log.Printf("main: setup complete, returning to caller (will start tray)")
 	return true, nil
 }
 

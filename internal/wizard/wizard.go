@@ -16,6 +16,7 @@ package wizard
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/gotk3/gotk3/gtk"
@@ -202,15 +203,20 @@ func RunFull() (*State, error) {
 		step.Box.ShowAll()
 
 		step.Next.Connect("clicked", func() {
+			log.Printf("wizard: Next clicked on step idx=%d k=%v len(keys)=%d", idx, k, len(keys))
 			if step.Capture != nil {
 				if err := step.Capture(state); err != nil {
+					log.Printf("wizard: Capture error: %v", err)
 					showError(win, err)
 					return
 				}
 			}
 			keys = chain()
+			log.Printf("wizard: rebuilt chain len=%d", len(keys))
 			if idx+1 >= len(keys) {
+				log.Printf("wizard: finish() called from click handler")
 				finish(state)
+				log.Printf("wizard: finish() returned, waiting for gtk.Main() to exit")
 				return
 			}
 			idx++
@@ -240,10 +246,16 @@ func RunFull() (*State, error) {
 	// Show the window + the first step. ShowAll on step.Box alone
 	// doesn't render (the GtkWindow is still hidden). Mirrors
 	// what RunWelcome does at the end of its setup.
+	log.Printf("wizard: about to show window and enter gtk.Main()")
 	win.ShowAll()
-	win.Connect("destroy", func() { finish(nil) })
+	win.Connect("destroy", func() {
+		log.Printf("wizard: destroy event fired")
+		finish(nil)
+	})
 
 	gtk.Main()
+	log.Printf("wizard: gtk.Main() returned, calling win.Destroy()")
 	win.Destroy()
+	log.Printf("wizard: win.Destroy() returned, reading result channel")
 	return <-result, nil
 }
