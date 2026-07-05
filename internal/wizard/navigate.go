@@ -52,6 +52,9 @@ func buildStepRegistry() map[stepKey]stepRenderer {
 		stepTTS: func(win *gtk.Window, s *State) (*steps.Step, error) {
 			return steps.BuildTTS(win, s)
 		},
+		stepBehavior: func(win *gtk.Window, s *State) (*steps.Step, error) {
+			return steps.BuildBehavior(win, s)
+		},
 		stepSecondaryHotkeys: func(win *gtk.Window, s *State) (*steps.Step, error) {
 			return steps.BuildSecondaryHotkeys(win, s)
 		},
@@ -68,16 +71,15 @@ func buildStepRegistry() map[stepKey]stepRenderer {
 // language + change of language inserts/removes the TTS step
 // on the way forward.
 //
-// rc1-hotpatch-14: the SecondaryHotkeys step is always shown
-// (short, has sensible defaults for users who want to skip).
-// rc1-hotpatch-18: the Behavior step is gone — behavior is
-// fully hardcoded in defaultConfigFor.
+// rc1-hotpatch-14: the Behavior and SecondaryHotkeys steps are
+// always shown (they are short and have sensible defaults for
+// users who want to skip the customization).
 func buildStepChain(state *State) []stepKey {
 	keys := []stepKey{stepWelcome, stepLanguage, stepHotkey}
 	if steps.ShouldShow(state.LanguageCode()) {
 		keys = append(keys, stepTTS)
 	}
-	keys = append(keys, stepSecondaryHotkeys, stepFinish)
+	keys = append(keys, stepBehavior, stepSecondaryHotkeys, stepFinish)
 	return keys
 }
 

@@ -151,7 +151,7 @@ behavior:
   sound_on_start: false
   sound_on_end: false
   notifications: true
-  autostart: true
+  autostart: false
   autostart_delay: 5
 `
 

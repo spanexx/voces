@@ -313,14 +313,13 @@ func TestApply_WritesCompleteConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	// behavior: block (matches config.BehaviorConfig)
-	// rc1-hotpatch-18: autostart is now hardcoded to true.
 	wantBehavior := []string{
 		"auto_type: true",
 		"type_delay: 15",
 		"sound_on_start: false",
 		"sound_on_end: false",
 		"notifications: true",
-		"autostart: true",
+		"autostart: false",
 		"autostart_delay: 5",
 	}
 	for _, want := range wantBehavior {
@@ -406,13 +405,11 @@ func TestApply_PreservesUserChangedSecondaryHotkeys(t *testing.T) {
 	}
 }
 
-// TestApply_HonorsWizardAutostart (rc1-hotpatch-14; removed
-// in rc1-hotpatch-18) verified the wizard's Autostart choice
-// flowed through to config.yaml. The wizard no longer asks
-// about autostart — behavior is fully hardcoded to
-// autostart=true. This test is kept as a regression guard for
-// the hardcoded value: it now just runs Apply with a basic
-// state and asserts the produced config has autostart: true.
+// TestApply_HonorsWizardAutostart (rc1-hotpatch-14) verifies
+// that when the wizard's State has Autostart=true, the
+// generated config.yaml has behavior.autostart: true. The
+// pre-existing TestApply_WritesCompleteConfig covers the
+// default (false) case; this covers the user-yes path.
 func TestApply_HonorsWizardAutostart(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
@@ -422,6 +419,7 @@ func TestApply_HonorsWizardAutostart(t *testing.T) {
 		Language:     "en",
 		WhisperModel: "ggml-small.en.bin",
 		HotkeyPreset: HotkeyPresetCtrlSpace,
+		Autostart:    true,
 	}
 	if err := Apply(state, DefaultManifest()); err != nil {
 		t.Fatalf("Apply: %v", err)

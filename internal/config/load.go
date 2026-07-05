@@ -22,7 +22,7 @@ import (
 
 // CID:config-load-001 - Load
 // Purpose: Reads application configuration from executable directory or current path.
-// Uses: viper, createDefaultConfig, validateConfig, substituteEnvVars
+// Uses: viper, createDefaultConfig, validateConfig, substituteEnvVars, runtimeDefaults
 // Used by: internal/app/lifecycle.go
 func Load() (*Config, error) {
 	// Get executable directory
@@ -32,14 +32,20 @@ func Load() (*Config, error) {
 	}
 	execDir := filepath.Dir(execPath)
 
-	// Set up viper. No runtime defaults (rc1-hotpatch-18): the
-	// wizard is the single source of truth for what a fresh
-	// config looks like. rc1 users must re-run the wizard
-	// (auto-triggered on version bump via setup.ShouldRun) to
-	// regenerate the full behavior + hotkey block.
+	// Set up viper
 	v := viper.New()
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
+
+	// Declare viper defaults for fields that older wizards
+	// (pre-rc1-hotpatch-14) did not write, so a config.yaml
+	// that lacks the behavior: block or the four secondary
+	// hotkey fields still loads with the right in-memory
+	// values. See CID:config-defaults-001 (rc1-hotpatch-16)
+	// and the runtimeDefaults function for the full list and
+	// the sync contract with createDefaultConfig /
+	// defaultConfigFor.
+	runtimeDefaults(v)
 
 	// 1. User config directory (XDG spec)
 	if configDir, err := os.UserConfigDir(); err == nil {

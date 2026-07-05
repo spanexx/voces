@@ -32,14 +32,14 @@ const (
 	stepLanguage
 	stepHotkey
 	stepTTS
-	// stepSecondaryHotkeys (rc1-hotpatch-14; rc1-hotpatch-18
-	// confirmed) is the 4-row editor for the read_clipboard,
-	// toggle_tts, toggle_transcription, and stop_recording
-	// hotkeys. Sits before the finish step so the user can
-	// revisit hotkey choices without bouncing back to the
-	// main hotkey step. The behavior step that used to live
-	// here was removed in rc1-hotpatch-18 — the behavior
-	// block is fully hardcoded in defaultConfigFor.
+	// stepBehavior (rc1-hotpatch-14) asks whether Voces should
+	// autostart on login. Wired into config.Behavior.Autostart.
+	stepBehavior
+	// stepSecondaryHotkeys (rc1-hotpatch-14) is the 4-row editor
+	// for the read_clipboard, toggle_tts, toggle_transcription,
+	// and stop_recording hotkeys. Sits before the finish step
+	// so the user can revisit hotkey choices without bouncing
+	// back to the main hotkey step.
 	stepSecondaryHotkeys
 	stepFinish
 )

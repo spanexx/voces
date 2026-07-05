@@ -389,11 +389,6 @@ func TestCreateDefaultConfig(t *testing.T) {
 // desired=false" / "notify: system disabled in config" in the
 // logs on a fresh install.
 //
-// rc1-hotpatch-18: autostart flipped to true. The wizard no
-// longer asks the user, and the runtime default mirrors the
-// hardcoded behavior block in setup.defaultConfigFor so the
-// two stay in sync.
-//
 // The runtime default template must therefore carry the same
 // behavior + hotkey fields as the wizard's generated config.
 func TestCreateDefaultConfig_CompleteBehaviorAndHotkeys(t *testing.T) {
@@ -420,7 +415,7 @@ func TestCreateDefaultConfig_CompleteBehaviorAndHotkeys(t *testing.T) {
 		"sound_on_start: false",
 		"sound_on_end: false",
 		"notifications: true",
-		"autostart: true",
+		"autostart: false",
 		"autostart_delay: 5",
 	}
 	for _, want := range wantBehavior {
