@@ -19,9 +19,9 @@ import (
 // CID:wizard-behavstep-001 - BuildBehavior
 // Purpose: build the behavior step. Two radio buttons: "Yes, start
 // Voces when I log in" and "No, only when I launch it". Default is
-// "No" so users who do not want autostart never get it. The
-// "Yes" radio marks Autostart=true on the State; defaultConfigFor
-// reads that flag and writes behavior.autostart: true.
+// now "Yes" (rc1-hotpatch-19), but the user can still explicitly
+// choose "No". The "Yes" radio marks Autostart=true on the State;
+// defaultConfigFor reads that flag and writes behavior.autostart: true.
 //
 // Back is set so the user can return to the previous step.
 func BuildBehavior(win *gtk.Window, stateReader StateReader) (*Step, error) {
@@ -33,12 +33,16 @@ func BuildBehavior(win *gtk.Window, stateReader StateReader) (*Step, error) {
 	if err != nil {
 		return nil, fmt.Errorf("behavior: no radio: %w", err)
 	}
-	// Default: No. (Matches the createDefaultConfig default of
-	// autostart=false, so the wizard never surprises a user with
-	// a daemon they did not opt into.)
-	noBtn.SetActive(true)
-	if stateReader != nil && stateReader.AutostartDesired() {
-		yesBtn.SetActive(true)
+	// Default: Yes. (rc1-hotpatch-19: was "No"; flipped to
+	// "Yes" because a fresh install that doesn't autostart is
+	// almost always a footgun — the user installs Voces, sees
+	// nothing in the tray, forgets it exists. The user can
+	// still pick "No" explicitly; this just changes the
+	// preselected radio so the wizard writes autostart=true
+	// on a true first run with no input from the user.)
+	yesBtn.SetActive(true)
+	if stateReader != nil && !stateReader.AutostartDesired() {
+		noBtn.SetActive(true)
 	}
 
 	hint, err := gtk.LabelNew(

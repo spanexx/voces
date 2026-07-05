@@ -5,11 +5,20 @@
  *   a setup ↔ wizard import cycle (wizard already imports setup
  *   for the HotkeyPreset* constants).
  *
- * Routing rule (ADR-0004):
+ * Routing rule (ADR-0004 + rc1-hotpatch-19):
  *   - Language == "en"        → whisper model ggml-small.en.bin
  *   - Language != "en"        → whisper model ggml-base.bin
  *   - TTSEnabled && TTSVoice  → PiperVoice = TTSVoice
  *   - !TTSEnabled             → PiperVoice = ""
+ *   - Language == "en"        → PiperVoice = "en_US-lessac-medium"
+ *                                (rc1-hotpatch-19: English always
+ *                                installs the lessac voice so the
+ *                                read-clipboard hotkey can speak
+ *                                the transcript even when the user
+ *                                did not opt into TTS. The TTS step
+ *                                is still skipped for English in
+ *                                steps/languages.go; the user is
+ *                                not asked to choose a voice.)
  *
  * CID Index:
  * CID:wizardcli-translate-001 -> StateFromWizard
@@ -29,6 +38,11 @@ import (
 const (
 	whisperEnglishModel      = "ggml-small.en.bin"
 	whisperMultilingualModel = "ggml-base.bin"
+	// piperEnglishVoice is the default piper voice installed
+	// for English installs (rc1-hotpatch-19). Used even when
+	// the user does not opt into TTS so the read-clipboard
+	// hotkey has a voice to speak with.
+	piperEnglishVoice = "en_US-lessac-medium"
 )
 
 // CID:wizardcli-translate-001 - StateFromWizard
@@ -45,8 +59,13 @@ func StateFromWizard(w *wizard.State, appVersion string) *setup.State {
 		whisperModel = whisperEnglishModel
 	}
 	piperVoice := ""
-	if w.TTSEnabled && w.TTSVoice != "" {
+	switch {
+	case w.TTSEnabled && w.TTSVoice != "":
 		piperVoice = w.TTSVoice
+	case w.Language == "en":
+		// English: TTS step is skipped, but install the
+		// lessac voice so read-clipboard can speak.
+		piperVoice = piperEnglishVoice
 	}
 	return &setup.State{
 		SchemaVersion:          "1",

@@ -140,9 +140,9 @@ type audioBlock struct {
 //                                 opt in via the tray menu)
 //   - notifications=true        (surface transcribe start/stop
 //                                + errors via libnotify)
-//   - autostart=false           (opt-in; the wizard now asks
-//                                explicitly, see rc1-hotpatch-14
-//                                Part B)
+//   - autostart=true            (rc1-hotpatch-19 flips the
+//                                runtime default to match the
+//                                wizard's new preselected "Yes")
 //   - autostart_delay=5         (seconds to wait after login
 //                                before starting the tray, so
 //                                the desktop has time to settle)

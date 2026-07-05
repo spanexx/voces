@@ -54,16 +54,16 @@ type State struct {
 }
 
 // CID:wizard-state-002 - NewState
-// Purpose: returns a State with the same defaults the welcome step
-// presents (English, ctrl-space, no TTS, no autostart, runtime
-// defaults for the four secondary hotkeys). The hotkey constants
-// are pulled from the setup package so wizard + persistence agree.
+// Purpose: returns a State with the same defaults the wizard presents
+// (English, ctrl-space, no TTS, autostart enabled, runtime defaults
+// for the four secondary hotkeys). The hotkey constants are pulled
+// from the setup package so wizard + persistence agree.
 func NewState() *State {
 	return &State{
 		Language:               "en",
 		HotkeyPreset:           setup.HotkeyPresetCtrlSpace,
 		TTSEnabled:             false,
-		Autostart:              false,
+		Autostart:              true,
 		StopRecordingKey:       "",
 		ReadClipboardKey:       "<f10>",
 		ToggleTTSKey:           "<f11>",
