@@ -41,18 +41,25 @@ type StateReader interface {
 	Hotkey() string
 	Custom() string
 	TTS() bool
+	AutostartDesired() bool
+	StopRecordingKeyCode() string
+	ReadClipboardKeyCode() string
+	ToggleTTSKeyCode() string
+	ToggleTranscriptionKeyCode() string
 }
 
 // CID:wizard-step-004 - StateSetter
 // Purpose: write view of the wizard State a step's Capture closure
 // takes to commit the user's choice. SetLanguageCode/SetHotkey are
 // no-ops on empty input so a step that the user skipped does not
-// erase the State. SetTTS is always applied because its zero value
-// (false) is meaningful.
+// erase the State. SetTTS / SetAutostart are always applied because
+// their zero value (false) is meaningful.
 type StateSetter interface {
 	SetLanguageCode(code string)
 	SetHotkey(preset, custom string)
 	SetTTS(enabled bool)
+	SetAutostart(desired bool)
+	SetSecondaryHotkeys(stop, read, toggleTTS, toggleTranscription string)
 }
 
 // CID:wizard-step-001 - Step
@@ -76,30 +83,44 @@ type Step struct {
 // row with the Back and Next buttons (Back omitted when nil).
 // The returned *gtk.Box is the Step.Box the wizard attaches to the
 // window. The returned buttons are wired by the runner, not here.
+//
+// rc1-hotpatch-14: title label uses the .voces-step-title CSS
+// class (16px bold) instead of an inline <b> markup; Next uses
+// the .voces-next-btn class for the primary-action emphasis.
+// The BorderWidth bump (16 -> 20) gives the four-row secondary
+// hotkey editor enough room to breathe.
 func newStepContent(title string, content gtk.IWidget, backLabel, nextLabel string) (*gtk.Box, *gtk.Button, *gtk.Button, error) {
-	box, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 12)
+	box, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 14)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("steps: box: %w", err)
 	}
-	box.SetBorderWidth(16)
+	box.SetBorderWidth(0)
 
-	// The title uses a larger weight so it reads as a section header.
+	// The title uses the .voces-step-title CSS class (16px
+	// bold, near-black) so it reads as a section header.
 	titleLabel, err := gtk.LabelNew("")
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("steps: title label: %w", err)
 	}
 	titleLabel.SetMarkup(fmt.Sprintf("<b>%s</b>", title))
 	titleLabel.SetHAlign(gtk.ALIGN_START)
+	titleLabel.SetMarginBottom(4)
+	if tStyle, err := titleLabel.GetStyleContext(); err == nil {
+		tStyle.AddClass("voces-step-title")
+	}
 	box.PackStart(titleLabel, false, false, 0)
 
 	// The caller-supplied content is the only widget that expands.
 	box.PackStart(content, true, true, 0)
 
-	// Footer row: Back on the left, Next on the right.
+	// Footer row: Back on the left, Next on the right. Next
+	// gets the .voces-next-btn class so it picks up the
+	// primary-action gradient.
 	footer, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 8)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("steps: footer box: %w", err)
 	}
+	footer.SetMarginTop(8)
 	var back *gtk.Button
 	if backLabel != "" {
 		back, err = gtk.ButtonNewWithLabel(backLabel)
@@ -110,6 +131,9 @@ func newStepContent(title string, content gtk.IWidget, backLabel, nextLabel stri
 	next, err := gtk.ButtonNewWithLabel(nextLabel)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("steps: next button: %w", err)
+	}
+	if nStyle, err := next.GetStyleContext(); err == nil {
+		nStyle.AddClass("voces-next-btn")
 	}
 	spacer, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 0)
 	if err != nil {

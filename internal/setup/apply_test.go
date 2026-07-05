@@ -278,6 +278,204 @@ func TestApply_WritesAudioBlock(t *testing.T) {
 	}
 }
 
+// TestApply_WritesCompleteConfig is the regression test for the
+// rc1-hotpatch-14 bug: the wizard's generatedConfig was missing
+// the behavior: block AND the four secondary hotkey fields. On
+// first run, the user's config.yaml had no autostart, no
+// notifications flag, no auto_type flag, no read_clipboard key
+// (so the "read clipboard" hotkey feature was silently unbound),
+// etc. The runtime Config struct read these as Go zero values
+// (autostart=false, notifications=false, ...) which is why logs
+// showed "Autostart: desired=false" and "notify: system
+// disabled in config" on a fresh install.
+//
+// The wizard must write a complete behavior block matching
+// config.createDefaultConfig's defaults AND the four secondary
+// hotkey fields with their runtime defaults (<f10>, <f11>,
+// <f12>; stop_recording is intentionally empty — the hold-
+// binding model has no separate stop key).
+func TestApply_WritesCompleteConfig(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	state := &State{
+		AppVersion:   "v0.1.0",
+		Language:     "en",
+		WhisperModel: "ggml-small.en.bin",
+		HotkeyPreset: HotkeyPresetCtrlSpace,
+	}
+	if err := Apply(state, DefaultManifest()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	cfgPath := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "voces", "config.yaml")
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// behavior: block (matches config.BehaviorConfig)
+	wantBehavior := []string{
+		"auto_type: true",
+		"type_delay: 15",
+		"sound_on_start: false",
+		"sound_on_end: false",
+		"notifications: true",
+		"autostart: false",
+		"autostart_delay: 5",
+	}
+	for _, want := range wantBehavior {
+		if !contains(data, []byte(want)) {
+			t.Errorf("config.yaml missing behavior %q\n---\n%s\n---", want, data)
+		}
+	}
+	// Four secondary hotkey fields, with the runtime defaults.
+	// stop_recording is intentionally empty (the hold-binding
+	// model re-uses the record key to stop) but the field must
+	// still appear so preserveHotkeys can pick up user changes.
+	// Note: YAML encoder emits "<f10>" without quotes (it is a
+	// valid unquoted string) and stop_recording as a quoted "".
+	wantHotkeys := []string{
+		"stop_recording: \"\"",
+		"read_clipboard: <f10>",
+		"toggle_tts: <f11>",
+		"toggle_transcription: <f12>",
+	}
+	for _, want := range wantHotkeys {
+		if !contains(data, []byte(want)) {
+			t.Errorf("config.yaml missing hotkey %q\n---\n%s\n---", want, data)
+		}
+	}
+}
+
+// TestApply_PreservesUserChangedSecondaryHotkeys: when a user
+// re-runs the wizard but had previously customized one of the
+// four secondary hotkey fields, the new defaults (rc1-hotpatch-14)
+// must not stomp that value. The pre-existing test
+// TestApply_PreservesPreExistingHotkeys only covered the
+// "wizard writes nothing" case; after hotpatch-14 the wizard
+// writes defaults, so the preserve path must keep overriding.
+func TestApply_PreservesUserChangedSecondaryHotkeys(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", cfgDir)
+	appCfgDir := filepath.Join(cfgDir, "voces")
+	if err := os.MkdirAll(appCfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Pre-existing config with a user-customized read_clipboard.
+	preExisting := `hotkeys:
+  record_and_type: '<rightctrl>+<left>'
+  read_clipboard: '<f5>'
+  toggle_tts: '<f6>'
+  toggle_transcription: '<f7>'
+  stop_recording: '<esc>'
+`
+	if err := os.WriteFile(filepath.Join(appCfgDir, "config.yaml"), []byte(preExisting), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	state := &State{
+		AppVersion:   "v0.1.0",
+		Language:     "en",
+		WhisperModel: "ggml-small.en.bin",
+		HotkeyPreset: HotkeyPresetCtrlSpace,
+	}
+	if err := Apply(state, DefaultManifest()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(appCfgDir, "config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// User-customized values must survive.
+	mustContain := []string{"<f5>", "<f6>", "<f7>", "<esc>"}
+	for _, want := range mustContain {
+		if !contains(data, []byte(want)) {
+			t.Errorf("user-customized %q was stomped:\n%s", want, data)
+		}
+	}
+	// Wizard's default <f10> must NOT appear — the user picked
+	// something different, preserveHotkeys must win.
+	if contains(data, []byte("<f10>")) {
+		t.Errorf("user-customized read_clipboard was replaced by wizard default <f10>:\n%s", data)
+	}
+	// record_and_type is wizard-owned and must reflect the new
+	// choice (ctrl+space), not the old <rightctrl>+<left>.
+	if contains(data, []byte("record_and_type: '<rightctrl>+<left>'")) {
+		t.Errorf("record_and_type was preserved; wizard's new choice must win:\n%s", data)
+	}
+}
+
+// TestApply_HonorsWizardAutostart (rc1-hotpatch-14) verifies
+// that when the wizard's State has Autostart=true, the
+// generated config.yaml has behavior.autostart: true. The
+// pre-existing TestApply_WritesCompleteConfig covers the
+// default (false) case; this covers the user-yes path.
+func TestApply_HonorsWizardAutostart(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	state := &State{
+		AppVersion:   "v0.1.0",
+		Language:     "en",
+		WhisperModel: "ggml-small.en.bin",
+		HotkeyPreset: HotkeyPresetCtrlSpace,
+		Autostart:    true,
+	}
+	if err := Apply(state, DefaultManifest()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	cfgPath := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "voces", "config.yaml")
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(data, []byte("autostart: true")) {
+		t.Errorf("config.yaml missing autostart: true after wizard said yes:\n%s", data)
+	}
+}
+
+// TestApply_HonorsWizardSecondaryHotkey (rc1-hotpatch-14)
+// verifies that a user-customized read_clipboard hotkey from
+// the wizard's SecondaryHotkeys step is written verbatim. The
+// pre-existing TestApply_WritesCompleteConfig covers the
+// "user did not customize" case; this covers the user-picked-
+// a-different-key path.
+func TestApply_HonorsWizardSecondaryHotkey(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	state := &State{
+		AppVersion:        "v0.1.0",
+		Language:          "en",
+		WhisperModel:      "ggml-small.en.bin",
+		HotkeyPreset:      HotkeyPresetCtrlSpace,
+		ReadClipboardKey:  "ctrl+shift+c",
+		ToggleTTSKey:      "ctrl+shift+t",
+		ToggleTranscriptionKey: "ctrl+shift+y",
+	}
+	if err := Apply(state, DefaultManifest()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	cfgPath := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "voces", "config.yaml")
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustContain := []string{
+		"read_clipboard: ctrl+shift+c",
+		"toggle_tts: ctrl+shift+t",
+		"toggle_transcription: ctrl+shift+y",
+	}
+	for _, want := range mustContain {
+		if !contains(data, []byte(want)) {
+			t.Errorf("config.yaml missing %q:\n%s", want, data)
+		}
+	}
+	if contains(data, []byte("<f10>")) {
+		t.Errorf("user-customized read_clipboard was replaced by default <f10>:\n%s", data)
+	}
+}
+
 // contains is a tiny helper kept local to this test file to avoid pulling
 // in strings.Contains from the test binary twice. Returns true if needle
 // appears anywhere in haystack.

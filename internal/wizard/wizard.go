@@ -57,7 +57,7 @@ func RunWelcome() (bool, error) {
 		return false, fmt.Errorf("wizard: gtk init: %w", err)
 	}
 
-	win, err := NewWindow()
+	win, _, err := NewWindow()
 	if err != nil {
 		return false, err
 	}
@@ -125,21 +125,14 @@ func RunFull(commit CommitFunc) (*State, error) {
 		return nil, fmt.Errorf("wizard: gtk init: %w", err)
 	}
 
-	win, err := NewWindow()
+	// NewWindow returns the contentBox (the step-swap slot)
+	// alongside the window. The window now ships with a
+	// styled header + accent strip baked in, so the runner
+	// does not own the outer container anymore.
+	win, contentBox, err := NewWindow()
 	if err != nil {
 		return nil, err
 	}
-
-	// GtkWindow is a GtkBin (one direct child). Every step's box
-	// lives inside this single wrapper; showStepAt swaps them in
-	// and out, so the window itself only ever has one child and
-	// step transitions don't trigger the Gtk-WARNING.
-	contentBox, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
-	if err != nil {
-		win.Destroy()
-		return nil, fmt.Errorf("wizard: build content box: %w", err)
-	}
-	win.Add(contentBox)
 
 	state := NewState()
 	result := make(chan *State, 1)

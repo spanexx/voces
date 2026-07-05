@@ -4,11 +4,13 @@
  * - ttsBlock + piperBlock + elevenLabsBlock: speech synth
  * - hotkeysBlock: hotkey subsystem (rc1-11)
  * - audioBlock: recording parameters (rc1-hotpatch-13)
+ * - behaviorBlock: autostart/notifications/auto_type/... (rc1-hotpatch-14)
  *
  * CID Index:
  * CID:setup-types-001 -> generatedConfig
  * CID:setup-types-002 -> hotkeysBlock
  * CID:setup-types-003 -> audioBlock
+ * CID:setup-types-004 -> behaviorBlock
  *
  * Quick lookup: rg -n "CID:setup-types-" internal/setup/types.go
  */
@@ -34,6 +36,15 @@ type generatedConfig struct {
 	// app.New() fails with "audio.sample_rate must be positive"
 	// right after the wizard writes the config.
 	Audio audioBlock `yaml:"audio"`
+	// Behavior block (rc1-hotpatch-14) — runtime Config
+	// reads autostart, notifications, auto_type, type_delay,
+	// sound_on_start, sound_on_end, autostart_delay. Without
+	// this block viper unmarshals Behavior as the zero struct
+	// (everything false, type_delay=0) which is why logs on a
+	// fresh install showed "Autostart: desired=false" and
+	// "notify: system disabled in config". Keep values in sync
+	// with internal/config.createDefaultConfig.
+	Behavior behaviorBlock `yaml:"behavior"`
 }
 
 type transcriptionBlock struct {
@@ -78,20 +89,29 @@ type elevenLabsBlock struct {
 
 // CID:setup-types-002 - hotkeysBlock
 // Purpose: the on-disk hotkey layout that the wizard writes.
-// Mirrors config.HotkeysConfig exactly. omitempty on the four
-// secondary fields keeps the first-run output tidy. The primary
-// field record_and_type is always written because runtime
-// validation requires it; without it, voces crashes with
-// "hotkeys.record_and_type is required" (rc1-hotpatch-11).
+// Mirrors config.HotkeysConfig exactly. record_and_type is
+// always written because runtime validation requires it; without
+// it, voces crashes with "hotkeys.record_and_type is required"
+// (rc1-hotpatch-11).
+//
+// rc1-hotpatch-14: the four secondary fields are also always
+// written now. Previously they had omitempty so they only
+// appeared when preserveHotkeys pulled a pre-existing value
+// forward; on a first run they were absent and the engine
+// treated them as unbound (the "read clipboard" hotkey was
+// silently not registered). The defaults match
+// config.createDefaultConfig (<f10>, <f11>, <f12>; stop_recording
+// is intentionally empty because the hold-binding model re-uses
+// the record key to stop).
 // Uses: (none — leaf type).
 // Used by: generatedConfig, defaultConfigFor, preserveHotkeys.
 
 type hotkeysBlock struct {
 	RecordAndType       string `yaml:"record_and_type"`
-	StopRecording       string `yaml:"stop_recording,omitempty"`
-	ReadClipboard       string `yaml:"read_clipboard,omitempty"`
-	ToggleTTS           string `yaml:"toggle_tts,omitempty"`
-	ToggleTranscription string `yaml:"toggle_transcription,omitempty"`
+	StopRecording       string `yaml:"stop_recording"`
+	ReadClipboard       string `yaml:"read_clipboard"`
+	ToggleTTS           string `yaml:"toggle_tts"`
+	ToggleTranscription string `yaml:"toggle_transcription"`
 }
 
 // CID:setup-types-003 - audioBlock
@@ -104,4 +124,34 @@ type audioBlock struct {
 	Channels    int `yaml:"channels"`
 	ChunkSize   int `yaml:"chunk_size"`
 	MaxDuration int `yaml:"max_duration"`
+}
+
+// CID:setup-types-004 - behaviorBlock
+// Purpose: mirror the runtime config.BehaviorConfig shape with
+// sensible defaults. The defaults match
+// internal/config.createDefaultConfig:
+//   - auto_type=true   (the whole point of the app — type the
+//                       transcribed text into the focused field)
+//   - type_delay=15    (ms between keystrokes when typing
+//                       long output; small enough to feel snappy,
+//                       large enough to not drop characters on
+//                       slow apps)
+//   - sound_on_start/end=false  (silent by default; users can
+//                                 opt in via the tray menu)
+//   - notifications=true        (surface transcribe start/stop
+//                                + errors via libnotify)
+//   - autostart=false           (opt-in; the wizard now asks
+//                                explicitly, see rc1-hotpatch-14
+//                                Part B)
+//   - autostart_delay=5         (seconds to wait after login
+//                                before starting the tray, so
+//                                the desktop has time to settle)
+type behaviorBlock struct {
+	AutoType       bool `yaml:"auto_type"`
+	TypeDelay      int  `yaml:"type_delay"`
+	SoundOnStart   bool `yaml:"sound_on_start"`
+	SoundOnEnd     bool `yaml:"sound_on_end"`
+	Notifications  bool `yaml:"notifications"`
+	Autostart      bool `yaml:"autostart"`
+	AutostartDelay int  `yaml:"autostart_delay"`
 }

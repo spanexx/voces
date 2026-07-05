@@ -49,12 +49,17 @@ func StateFromWizard(w *wizard.State, appVersion string) *setup.State {
 		piperVoice = w.TTSVoice
 	}
 	return &setup.State{
-		SchemaVersion: "1",
-		AppVersion:    appVersion,
-		Language:      w.Language,
-		WhisperModel:  whisperModel,
-		PiperVoice:    piperVoice,
-		HotkeyPreset:  w.HotkeyPreset,
-		CustomHotkey:  w.CustomHotkey,
+		SchemaVersion:          "1",
+		AppVersion:             appVersion,
+		Language:               w.Language,
+		WhisperModel:           whisperModel,
+		PiperVoice:             piperVoice,
+		HotkeyPreset:           w.HotkeyPreset,
+		CustomHotkey:           w.CustomHotkey,
+		Autostart:              w.Autostart,
+		StopRecordingKey:       w.StopRecordingKey,
+		ReadClipboardKey:       w.ReadClipboardKey,
+		ToggleTTSKey:           w.ToggleTTSKey,
+		ToggleTranscriptionKey: w.ToggleTranscriptionKey,
 	}
 }

@@ -59,6 +59,24 @@ type State struct {
 	HotkeyPreset string `json:"hotkey_preset"`
 	// CustomHotkey is the captured hotkey string when HotkeyPreset == "custom".
 	CustomHotkey string `json:"custom_hotkey,omitempty"`
+	// Autostart (rc1-hotpatch-14) is the user's "start Voces on
+	// login?" answer. Written to behavior.autostart by
+	// defaultConfigFor. Older state.json files written before
+	// this field existed parse with Autostart=false (the
+	// historical default) which is the safe behavior.
+	Autostart bool `json:"autostart,omitempty"`
+	// Secondary hotkey fields (rc1-hotpatch-14). These come
+	// from the wizard's SecondaryHotkeys step and are written
+	// to hotkeys.{stop_recording, read_clipboard, toggle_tts,
+	// toggle_transcription} by defaultConfigFor. An empty
+	// string means "use the runtime default" (<f10>/<f11>/<f12>,
+	// '' for stop_recording). Older state.json files parse
+	// with empty strings, which defaultConfigFor leaves alone
+	// (preserves the runtime default).
+	StopRecordingKey       string `json:"stop_recording_key,omitempty"`
+	ReadClipboardKey       string `json:"read_clipboard_key,omitempty"`
+	ToggleTTSKey           string `json:"toggle_tts_key,omitempty"`
+	ToggleTranscriptionKey string `json:"toggle_transcription_key,omitempty"`
 }
 
 // CID:setup-state-005 - pathForState

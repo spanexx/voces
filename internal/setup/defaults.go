@@ -68,11 +68,19 @@ func defaultConfigFor(s *State) generatedConfig {
 				SimilarityBoost: 0.75,
 			},
 		},
-		// Wizard owns record_and_type. The four secondary fields
-		// start empty; preserveHotkeys pulls any pre-existing
-		// user-set values forward so a re-run does not stomp them.
+		// Wizard owns record_and_type. The four secondary
+		// fields are populated from the State when the user
+		// customized them in the SecondaryHotkeys step
+		// (rc1-hotpatch-14); an empty field means "use the
+		// runtime default" (<f10>/<f11>/<f12>; stop_recording
+		// stays empty by design). preserveHotkeys still pulls
+		// any pre-existing user-set values forward.
 		Hotkeys: hotkeysBlock{
-			RecordAndType: hotkeyFromState(s.HotkeyPreset, s.CustomHotkey),
+			RecordAndType:       hotkeyFromState(s.HotkeyPreset, s.CustomHotkey),
+			StopRecording:       s.StopRecordingKey,
+			ReadClipboard:       secondaryOrDefault(s.ReadClipboardKey, "<f10>"),
+			ToggleTTS:           secondaryOrDefault(s.ToggleTTSKey, "<f11>"),
+			ToggleTranscription: secondaryOrDefault(s.ToggleTranscriptionKey, "<f12>"),
 		},
 		// Audio defaults (rc1-hotpatch-13). The runtime
 		// validator requires sample_rate > 0 and channels in
@@ -85,7 +93,37 @@ func defaultConfigFor(s *State) generatedConfig {
 			ChunkSize:   1024,
 			MaxDuration: 300,
 		},
+		// Behavior defaults (rc1-hotpatch-14). Mirror
+		// config.createDefaultConfig; the wizard's new
+		// Behavior step (Part B) may overwrite Autostart
+		// with the user's choice. Without this block viper
+		// unmarshals Behavior as the zero struct (autostart
+		// =false, notifications=false, type_delay=0) which
+		// is why a fresh install showed "Autostart:
+		// desired=false" and "notify: system disabled in
+		// config" in the logs.
+		Behavior: behaviorBlock{
+			AutoType:       true,
+			TypeDelay:      15,
+			SoundOnStart:   false,
+			SoundOnEnd:     false,
+			Notifications:  true,
+			Autostart:      s.Autostart,
+			AutostartDelay: 5,
+		},
 	}
+}
+
+// secondaryOrDefault returns user if non-empty, otherwise def.
+// Centralised here so the four secondary hotkey fields stay in
+// lock-step with the runtime defaults; if the runtime default
+// for read_clipboard ever changes, only this helper and
+// config.createDefaultConfig need an update.
+func secondaryOrDefault(user, def string) string {
+	if user != "" {
+		return user
+	}
+	return def
 }
 
 // CID:setup-defaults-002 - hotkeyFromState
