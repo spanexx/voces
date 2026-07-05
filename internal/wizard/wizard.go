@@ -1,13 +1,8 @@
 /* Code Map: Wizard Driver
- * - AppVersion: the version string rendered in the welcome footer
- * - ensureInit: idempotent GTK initialization
- * - RunWelcome: blocks on the main loop until the user clicks
- *   "Get started" or closes the window. Backwards-compatible
- *   wrapper for the first step only.
- * - RunFull: blocks on the main loop until the user clicks "Start"
- *   on the finish step (returns the accumulated State) or closes
- *   the window (returns nil). Back/Next chain the 4-5 steps
- *   (welcome → language → hotkey → tts? → finish).
+ * - AppVersion: version string rendered in the welcome footer
+ * - ensureInit: idempotent GTK init
+ * - RunWelcome: welcome step only (returns true on Next, false on close)
+ * - RunFull: 4-5 step chain (welcome → language → hotkey → tts? → finish)
  *
  * CID Index:
  * CID:wizard-001 -> AppVersion
@@ -33,15 +28,14 @@ import (
 // this to a ldflags -X override at build time.
 const AppVersion = "0.1.0"
 
-// gtkInitOnce guards gtk.Init so we never call it twice in the same
-// process. Gotk3's Init aborts on the second call.
+// gtkInitOnce guards gtk.Init so we never call it twice (gotk3
+// aborts on the second call).
 var gtkInitOnce sync.Once
 var gtkInitErr error
 
 // CID:wizard-002 - ensureInit
-// Purpose: idempotently initialize GTK. Returns the first init error
-// (typically a missing DISPLAY). All entry points that touch GTK
-// call this before constructing widgets.
+// Purpose: idempotently initialize GTK. Returns the first init
+// error (typically a missing DISPLAY).
 func ensureInit() error {
 	gtkInitOnce.Do(func() {
 		gtkInitErr = gtk.InitCheck(nil)
@@ -74,22 +68,23 @@ func RunWelcome() (bool, error) {
 	// result is buffered so the close handler can never block waiting
 	// for a reader that is not yet on the main loop.
 	result := make(chan bool, 1)
+	// quitOnce prevents a double gtk.MainQuit (see RunFull for the
+	// full explanation). The destroy event fires twice — once when
+	// the user closes the window, once when win.Destroy() below
+	// runs after gtk.Main() returns.
+	var quitOnce sync.Once
+	finish := func(v bool) {
+		quitOnce.Do(func() {
+			select {
+			case result <- v:
+			default:
+			}
+			gtk.MainQuit()
+		})
+	}
 
-	step.Next.Connect("clicked", func() {
-		select {
-		case result <- true:
-		default:
-		}
-		gtk.MainQuit()
-	})
-
-	win.Connect("destroy", func() {
-		select {
-		case result <- false:
-		default:
-		}
-		gtk.MainQuit()
-	})
+	step.Next.Connect("clicked", func() { finish(true) })
+	win.Connect("destroy", func() { finish(false) })
 
 	win.ShowAll()
 	gtk.Main()
@@ -168,6 +163,22 @@ func RunFull() (*State, error) {
 	// so the wrapper (and the window) always has exactly one child.
 	var currentBox *gtk.Box
 
+	// finish is the single exit point. sync.Once prevents a double
+	// gtk.MainQuit (which would trigger GTK's
+	// "main_loops != NULL" assertion and kill the process with
+	// SIGKILL): the explicit win.Destroy() after gtk.Main() returns
+	// re-fires the destroy event — finish() is then a no-op.
+	var quitOnce sync.Once
+	finish := func(v *State) {
+		quitOnce.Do(func() {
+			select {
+			case result <- v:
+			default:
+			}
+			gtk.MainQuit()
+		})
+	}
+
 	// showStepAt: declared as var + assignment (not := with the
 	// function literal) so the closure can recursively call itself.
 	var showStepAt func() error
@@ -199,11 +210,7 @@ func RunFull() (*State, error) {
 			}
 			keys = chain()
 			if idx+1 >= len(keys) {
-				select {
-				case result <- state:
-				default:
-				}
-				gtk.MainQuit()
+				finish(state)
 				return
 			}
 			idx++
@@ -234,14 +241,7 @@ func RunFull() (*State, error) {
 	// doesn't render (the GtkWindow is still hidden). Mirrors
 	// what RunWelcome does at the end of its setup.
 	win.ShowAll()
-
-	win.Connect("destroy", func() {
-		select {
-		case result <- nil:
-		default:
-		}
-		gtk.MainQuit()
-	})
+	win.Connect("destroy", func() { finish(nil) })
 
 	gtk.Main()
 	win.Destroy()
