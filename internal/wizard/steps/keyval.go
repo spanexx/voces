@@ -8,6 +8,14 @@
  * - IsModifierKeyval: true for the pure modifier keyvals (Shift,
  *   Ctrl, Alt, Super, Caps Lock). The hotkey capture widget uses
  *   this to ignore modifier-only presses.
+ * - IsValidAloneKeyval: true for keys that can be bound as a hotkey
+ *   by themselves (F1-F12, Escape, Tab, Space, navigation keys).
+ *   False for printable letters/digits/punctuation and for
+ *   pure modifiers. The capture widget uses this to reject
+ *   "weak" combos (e.g. "f" alone) with an inline warning.
+ * - HasModifier: true if the GDK modifier state has any combo-worthy
+ *   modifier set (Ctrl/Alt/Super/Shift). Ignores Caps Lock, Num
+ *   Lock and button masks.
  * - BuildCombo: turn a (modifier state, base keyval) pair from a
  *   key-press event into the canonical "<mod>+<base>" string the
  *   hotkey parser understands. Pure function, exported for testing.
@@ -20,6 +28,8 @@
  * CID:wizard-keyval-002 -> keyvalToString
  * CID:wizard-keyval-003 -> IsModifierKeyval
  * CID:wizard-keyval-004 -> BuildCombo
+ * CID:wizard-keyval-005 -> IsValidAloneKeyval
+ * CID:wizard-keyval-006 -> HasModifier
  *
  * Quick lookup: rg -n "CID:wizard-keyval-" internal/wizard/steps/
  */
@@ -123,6 +133,53 @@ func IsModifierKeyval(k uint) bool {
 	return false
 }
 
+// CID:wizard-keyval-005 - IsValidAloneKeyval
+// Purpose: tells the hotkey capture widget whether a keyval can be
+// bound as a hotkey by itself (without any modifier held). The
+// answer is true for the F-keys (F1-F12) and the non-printable
+// special keys (Escape, Tab, BackSpace, Return, Space, navigation
+// keys, Insert, Delete). False for printable keys (letters, digits,
+// punctuation) because binding a single printable key as a hotkey
+// would intercept that character everywhere it appears in text
+// input — the user can't type "f" anymore. False for pure
+// modifier keyvals (per IsModifierKeyval).
+//
+// The hotkey capture widget uses this to reject "weak" combos
+// (letter or digit with no modifier held) with an inline warning
+// so the user understands why their keypress didn't take.
+func IsValidAloneKeyval(k uint) bool {
+	if IsModifierKeyval(k) {
+		return false
+	}
+	// F1-F12: contiguous keyval range 0xffbe..0xffc9.
+	if k >= 0xffbe && k <= 0xffc9 {
+		return true
+	}
+	// Special non-printable keys + space (commonly bound alone).
+	switch k {
+	case 0xff08, 0xff09, 0xff0d, 0xff1b, // BackSpace, Tab, Return, Escape
+		0xff50, 0xff51, 0xff52, 0xff53, 0xff54, 0xff55, 0xff56, 0xff57, // Home..End
+		0xff63, 0xffff, // Insert, Delete
+		0x0020: // space (printable but a common alone-binding)
+		return true
+	}
+	return false
+}
+
+// CID:wizard-keyval-006 - HasModifier
+// Purpose: true if the GDK modifier-state bitmask has any of the
+// four "combo-worthy" modifiers set: Control, Alt (Mod1), Super
+// (Mod4), Shift. Used by the hotkey capture widget to decide
+// whether a keyval needs to be valid-alone (no modifier) or any
+// keyval works (with modifier). Num Lock, Caps Lock, Scroll Lock
+// and button masks are intentionally ignored.
+//
+// Takes uint (not gdk.ModifierType) because gotk3's EventKey.State()
+// already returns uint; the conversion is free.
+func HasModifier(s uint) bool {
+	return s&(uint(gdk.CONTROL_MASK)|uint(gdk.MOD1_MASK)|uint(gdk.MOD4_MASK)|uint(gdk.SHIFT_MASK)) != 0
+}
+
 // CID:wizard-keyval-004 - BuildCombo
 // Purpose: turn a (modifier state, base keyval) pair captured from
 // a key-press event into the canonical "<mod>+<base>" string the
@@ -140,22 +197,24 @@ func IsModifierKeyval(k uint) bool {
 //   - Printable keys come from gdk.KeyvalToUnicode; the
 //     hotkey parser passes unknown tokens through as-is so this
 //     round-trips for "a", "1", "space" etc.
-func BuildCombo(modState gdk.ModifierType, keyval uint) string {
+//
+// Takes uint for modState (see HasModifier).
+func BuildCombo(modState uint, keyval uint) string {
 	if IsModifierKeyval(keyval) {
 		return ""
 	}
 	base := strings.ToLower(keyvalToString(keyval))
 	mods := make([]string, 0, 4)
-	if modState&gdk.CONTROL_MASK != 0 {
+	if modState&uint(gdk.CONTROL_MASK) != 0 {
 		mods = append(mods, "ctrl")
 	}
-	if modState&gdk.MOD4_MASK != 0 {
+	if modState&uint(gdk.MOD4_MASK) != 0 {
 		mods = append(mods, "super")
 	}
-	if modState&gdk.MOD1_MASK != 0 {
+	if modState&uint(gdk.MOD1_MASK) != 0 {
 		mods = append(mods, "alt")
 	}
-	if modState&gdk.SHIFT_MASK != 0 {
+	if modState&uint(gdk.SHIFT_MASK) != 0 {
 		mods = append(mods, "shift")
 	}
 	mods = append(mods, base)

@@ -75,10 +75,10 @@ func BuildHotkey(win *gtk.Window, stateReader StateReader) (*Step, error) {
 		presets = append(presets, rb)
 	}
 
-	// Custom Entry — initially hidden, shown when the custom radio
-	// becomes active. The key-press-event handler writes the
-	// pressed key's name (Escape, Tab, F8, printable runes) into
-	// the Entry so the user can see what they pressed.
+	// Custom Entry + status label. Initially hidden, shown when the
+	// custom radio is active. The key-press handler writes the
+	// captured combination into the Entry and updates the status
+	// label with green/orange feedback.
 	customEntry, err := gtk.EntryNew()
 	if err != nil {
 		return nil, fmt.Errorf("hotkey: custom entry: %w", err)
@@ -88,13 +88,27 @@ func BuildHotkey(win *gtk.Window, stateReader StateReader) (*Step, error) {
 	customEntry.SetNoShowAll(true)
 	customEntry.Hide()
 
+	statusLabel, err := gtk.LabelNew("")
+	if err != nil {
+		return nil, fmt.Errorf("hotkey: status label: %w", err)
+	}
+	statusLabel.SetHAlign(gtk.ALIGN_START)
+	statusLabel.SetLineWrap(true)
+	statusLabel.SetMarginStart(2)
+	statusLabel.SetMarginTop(2)
+	statusLabel.SetNoShowAll(true)
+	statusLabel.Hide()
+
 	// Toggle visibility based on the custom radio.
 	customRadio := presets[len(presets)-1]
 	refresh := func() {
-		if customRadio.GetActive() {
+		show := customRadio.GetActive()
+		if show {
 			customEntry.Show()
+			statusLabel.Show()
 		} else {
 			customEntry.Hide()
+			statusLabel.Hide()
 		}
 	}
 	for _, rb := range presets {
@@ -102,16 +116,52 @@ func BuildHotkey(win *gtk.Window, stateReader StateReader) (*Step, error) {
 	}
 	refresh()
 
-	// Capture key presses into the Entry as a string. We use
-	// "key-press-event" so the Entry shows the live combination
-	// the user is pressing. The returned bool is ignored; the
-	// event is allowed to propagate.
+	// Select all on focus so the next keypress overwrites whatever
+	// is in the field. Without this the caret sits at the start and
+	// the new keypress is inserted *before* the existing text —
+	// confusing for a capture widget.
+	customEntry.Connect("focus-in-event", func() {
+		customEntry.SelectRegion(0, -1)
+	})
+
+	// Capture key presses into the Entry as a canonical combination
+	// string ("ctrl+shift+f9", "f8", "space"). Modifier-only
+	// presses are ignored. "Weak" combos (single printable key
+	// with no modifier) are rejected — binding a single letter as
+	// a hotkey would intercept that character everywhere.
 	customEntry.Connect("key-press-event", func(_ *gtk.Entry, ev *gdk.Event) bool {
 		ek := gdk.EventKeyNewFromEvent(ev)
 		if ek == nil {
 			return false
 		}
-		customEntry.SetText(keyvalToString(ek.KeyVal()))
+		state := ek.State()
+		keyval := ek.KeyVal()
+
+		// Pure modifier: keep in-progress combo, hint to add a key.
+		if IsModifierKeyval(keyval) {
+			statusLabel.SetMarkup(`<i>hold the modifier and press a key (F1-F12, letter, etc.)</i>`)
+			return true
+		}
+
+		// Weak combo: no modifier + printable (not special). Warn
+		// and don't update the field.
+		if !HasModifier(state) && !IsValidAloneKeyval(keyval) {
+			weak := BuildCombo(0, keyval)
+			statusLabel.SetMarkup(fmt.Sprintf(
+				`<span foreground="orange">⚠ "%s" is a single printable key and would conflict with typing. `+
+					`Hold a modifier (Ctrl/Alt/Super) or use an F-key (F1-F12).</span>`,
+				weak,
+			))
+			return true
+		}
+
+		// Valid combo: write to field and confirm in green.
+		combo := BuildCombo(state, keyval)
+		if combo == "" {
+			return true
+		}
+		customEntry.SetText(combo)
+		statusLabel.SetMarkup(fmt.Sprintf(`<span foreground="green">✓ %s</span>`, combo))
 		return true
 	})
 
@@ -156,6 +206,7 @@ func BuildHotkey(win *gtk.Window, stateReader StateReader) (*Step, error) {
 	content.PackStart(hint, false, false, 0)
 	content.PackStart(radioBox, false, false, 0)
 	content.PackStart(customEntry, false, false, 0)
+	content.PackStart(statusLabel, false, false, 0)
 
 	box, back, next, err := newStepContent("Choose your hotkey", content, "Back", "Next")
 	if err != nil {
