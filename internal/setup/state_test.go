@@ -95,6 +95,7 @@ func TestShouldRun_TruthTable(t *testing.T) {
 	type tc struct {
 		name              string
 		seed              *State // nil = no state.json
+		seedConfig        string // "" = no config.yaml
 		currentAppVersion string
 		want              bool
 	}
@@ -102,24 +103,55 @@ func TestShouldRun_TruthTable(t *testing.T) {
 		{
 			name:              "no state -> run",
 			seed:              nil,
+			seedConfig:        "",
 			currentAppVersion: "v1.0.0",
 			want:              true,
 		},
 		{
 			name:              "same version -> skip",
 			seed:              &State{AppVersion: "v1.0.0"},
+			seedConfig:        "transcription:\n  whisper_cpp:\n    model: ggml-small.en.bin\n",
 			currentAppVersion: "v1.0.0",
 			want:              false,
 		},
 		{
 			name:              "version upgrade -> run",
 			seed:              &State{AppVersion: "v1.0.0"},
+			seedConfig:        "transcription:\n  whisper_cpp:\n    model: ggml-small.en.bin\n",
 			currentAppVersion: "v1.0.1",
 			want:              true,
 		},
 		{
 			name:              "version downgrade -> run",
 			seed:              &State{AppVersion: "v1.0.1"},
+			seedConfig:        "transcription:\n  whisper_cpp:\n    model: ggml-small.en.bin\n",
+			currentAppVersion: "v1.0.0",
+			want:              true,
+		},
+		{
+			// Stale-state regression (rc1-hotpatch-12): the user
+			// removed ~/.config/voces but kept
+			// ~/.local/share/voces (where state.json lives). The
+			// old ShouldRun saw state.AppVersion == current and
+			// skipped the wizard — but config.yaml was missing
+			// too, so the app loaded a default config with empty
+			// model/binary paths and was effectively unusable.
+			// The wizard must run to regenerate config.yaml.
+			name:              "state present, config missing -> run",
+			seed:              &State{AppVersion: "v1.0.0"},
+			seedConfig:        "",
+			currentAppVersion: "v1.0.0",
+			want:              true,
+		},
+		{
+			// Config present but model field is empty: the
+			// wizard was never finished (e.g. user killed it
+			// after language selection, before model step).
+			// Re-run the wizard so the model is downloaded and
+			// the field is filled in.
+			name:              "state present, config model empty -> run",
+			seed:              &State{AppVersion: "v1.0.0"},
+			seedConfig:        "transcription:\n  whisper_cpp:\n    model: ''\n",
 			currentAppVersion: "v1.0.0",
 			want:              true,
 		},
@@ -127,8 +159,21 @@ func TestShouldRun_TruthTable(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Setenv("XDG_DATA_HOME", t.TempDir())
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 			if c.seed != nil {
 				if err := Save(c.seed); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if c.seedConfig != "" {
+				cfgPath, err := configPath()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(cfgPath, []byte(c.seedConfig), 0o644); err != nil {
 					t.Fatal(err)
 				}
 			}

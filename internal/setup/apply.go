@@ -1,5 +1,4 @@
-/*
- * Code Map: setup.Apply orchestrator
+/* Code Map: setup.Apply orchestrator
  * - Apply: writes state.json + config.yaml in one call
  * - configPath: $XDG_CONFIG_HOME/voces/config.yaml (HOME fallback)
  * - buildConfigDoc: assembles YAML body, calls preserve* helpers

@@ -1,5 +1,4 @@
-/*
- * Code Map: setup YAML type definitions
+/* Code Map: setup YAML type definitions
  * - generatedConfig: top-level on-disk shape
  * - transcriptionBlock + whisperCPPBlock + openAIAPIBlock: ASR
  * - ttsBlock + piperBlock + elevenLabsBlock: speech synth

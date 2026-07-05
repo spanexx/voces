@@ -1,5 +1,4 @@
-/*
- * Code Map: setup wizard-derived defaults
+/* Code Map: setup wizard-derived defaults
  * - defaultConfigFor: builds the wizard's recommended config
  * - hotkeyFromState: maps (preset, custom) -> record_and_type
  *

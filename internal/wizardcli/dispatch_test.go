@@ -17,6 +17,8 @@
 package wizardcli
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"voces/internal/setup"
@@ -62,11 +64,38 @@ func TestShouldRunSetup_AutoLaunch(t *testing.T) {
 	}
 }
 
-// TestShouldRunSetup_SkipsWhenStateCurrent: matching AppVersion means
-// the wizard must NOT run.
-func TestShouldRunSetup_SkipsWhenStateCurrent(t *testing.T) {
+// configPathForTest resolves the same $XDG_CONFIG_HOME/voces/config.yaml
+// path that setup.configPath() uses, so the test can seed a complete
+// config and exercise the rc1-hotpatch-12 "config present, model
+// filled in" branch. It also sets XDG_DATA_HOME so state.json lives
+// in a fresh temp dir (the test wants full isolation).
+func configPathForTest(t *testing.T) string {
+	t.Helper()
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	return filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "voces", "config.yaml")
+}
+
+// TestShouldRunSetup_SkipsWhenStateCurrent: matching AppVersion AND
+// a complete config.yaml means the wizard must NOT run. Without the
+// config seed, rc1-hotpatch-12 (ShouldRun now also checks
+// config.yaml) will correctly force a wizard re-run — see
+// internal/setup.TestShouldRun_TruthTable for the matching case.
+func TestShouldRunSetup_SkipsWhenStateCurrent(t *testing.T) {
+	cfgPath := configPathForTest(t)
 	if err := setup.Save(&setup.State{AppVersion: "v0.1.0"}); err != nil {
+		t.Fatal(err)
+	}
+	// Seed a complete config so ShouldRun sees a non-empty model
+	// field — the wizard's job is done.
+	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(
+		cfgPath,
+		[]byte("transcription:\n  whisper_cpp:\n    model: ggml-small.en.bin\n"),
+		0o644,
+	); err != nil {
 		t.Fatal(err)
 	}
 	run, force, err := ShouldRunSetup(false, "v0.1.0")

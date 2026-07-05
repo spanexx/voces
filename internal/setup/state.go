@@ -123,7 +123,20 @@ func Save(s *State) error {
 
 // CID:setup-state-004 - ShouldRun
 // Purpose: Returns true if the wizard should auto-launch.
-// Triggers: state.json missing OR AppVersion != currentVersion.
+// Triggers (rc1-hotpatch-12):
+//   1. state.json missing             -> first install
+//   2. state.AppVersion != current    -> upgrade or downgrade
+//   3. config.yaml missing            -> stale state (user
+//      removed ~/.config/voces but kept
+//      ~/.local/share/voces; the prior
+//      wizard's state survives but the
+//      config it produced is gone)
+//   4. config.transcription.whisper_cpp.model empty
+//      -> wizard was killed mid-step or
+//         the model download failed;
+//         the runtime cannot start
+//         transcription without a model
+//   5. otherwise                      -> skip (setup is complete)
 // Returns the error from Load only when it's NOT os.ErrNotExist.
 func ShouldRun(currentAppVersion string) (bool, error) {
 	s, err := Load()
@@ -136,5 +149,45 @@ func ShouldRun(currentAppVersion string) (bool, error) {
 	if s.AppVersion != currentAppVersion {
 		return true, nil
 	}
+	// (3) + (4): config-side checks. Cheaper state check
+	// already passed, so most users never touch the config
+	// file. These branches only fire for users who removed
+	// their config but kept their state (or who never
+	// finished the wizard).
+	cfgPath, err := configPath()
+	if err != nil {
+		return false, err
+	}
+	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
+		return true, nil
+	}
+	if configModelEmpty(cfgPath) {
+		return true, nil
+	}
 	return false, nil
+}
+
+// configModelEmpty reports whether the loaded config has an
+// empty model field under transcription.whisper_cpp.model —
+// the path the wizard fills in. Returns false on any parse
+// error so we don't force a re-run on a config the user
+// hand-edited; the wizard will simply see what the user wrote.
+func configModelEmpty(cfgPath string) bool {
+	raw, err := loadConfigRaw(cfgPath)
+	if err != nil {
+		return false
+	}
+	t, ok := raw["transcription"].(map[string]any)
+	if !ok {
+		return false
+	}
+	w, ok := t["whisper_cpp"].(map[string]any)
+	if !ok {
+		return false
+	}
+	v, ok := w["model"].(string)
+	if !ok {
+		return false
+	}
+	return v == ""
 }

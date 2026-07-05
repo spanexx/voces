@@ -1,5 +1,4 @@
-/*
- * Code Map: setup "user wins" preservation
+/* Code Map: setup "user wins" preservation
  * - preserveBinaryPath: keep user-set engine binary paths
  * - preserveHotkeys: keep user-set secondary hotkey fields
  * - loadConfigRaw: read pre-existing config.yaml into a map
