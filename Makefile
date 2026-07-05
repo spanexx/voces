@@ -170,7 +170,7 @@ uninstall:
 	@echo "✅ Uninstallation complete."
 
 vendor/whisper.cpp:
-	@git clone --depth 1 https://github.com/ggerganov/whisper.cpp vendor/whisper.cpp
+	@test -d vendor/whisper.cpp || git clone --depth 1 https://github.com/ggerganov/whisper.cpp vendor/whisper.cpp
 
 whispercpp-build: vendor/whisper.cpp
 	@echo "🔨 Building whisper.cpp (managed)..."
@@ -217,9 +217,7 @@ release-clean:
 engines: whispercpp-build piper-build
 
 vendor/piper:
-	@echo "📥 Cloning piper (rhasspy/piper) into vendor/piper..."
-	@git clone --depth 1 https://github.com/rhasspy/piper vendor/piper
-	@echo "✅ piper vendored."
+	@test -d vendor/piper || git clone --depth 1 https://github.com/rhasspy/piper vendor/piper
 	@echo ""
 	@echo "⚠️  NOTE: piper has heavy build deps (ONNX runtime, espeak-ng, etc.)."
 	@echo "   If 'make piper-build' fails, you can either:"
