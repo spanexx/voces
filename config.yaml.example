@@ -108,7 +108,10 @@ behavior:
   sound_on_end: false
   # Enable desktop notifications
   notifications: true
-  # Start the App automatically on login
-  autostart: false
+  # Start the App automatically on login (rc1-hotpatch-18:
+  # hardcoded to true by the wizard; edit this file and set
+  # to false to disable, then re-run the wizard so the
+  # config is preserved on subsequent runs).
+  autostart: true
   # Delay (in seconds) before the autostarted App activates hotkeys
   autostart_delay: 5

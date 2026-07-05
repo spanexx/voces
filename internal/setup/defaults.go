@@ -93,22 +93,24 @@ func defaultConfigFor(s *State) generatedConfig {
 			ChunkSize:   1024,
 			MaxDuration: 300,
 		},
-		// Behavior defaults (rc1-hotpatch-14). Mirror
-		// config.createDefaultConfig; the wizard's new
-		// Behavior step (Part B) may overwrite Autostart
-		// with the user's choice. Without this block viper
-		// unmarshals Behavior as the zero struct (autostart
-		// =false, notifications=false, type_delay=0) which
-		// is why a fresh install showed "Autostart:
-		// desired=false" and "notify: system disabled in
-		// config" in the logs.
+		// Behavior defaults (rc1-hotpatch-14; rc1-hotpatch-18
+		// hardcoded). Mirror config.createDefaultConfig. The
+		// wizard no longer asks about behavior (the entire
+		// block is hardcoded for simplicity) — every fresh
+		// install gets autostart=true, notifications=true,
+		// auto_type=true, etc. To change a field, edit
+		// config.yaml by hand; the wizard will not overwrite
+		// the user's value on re-run because the new
+		// behaviorBlock writes the full block only on a true
+		// first run (rc1-hotpatch-14's preserveHotkeys
+		// pattern).
 		Behavior: behaviorBlock{
 			AutoType:       true,
 			TypeDelay:      15,
 			SoundOnStart:   false,
 			SoundOnEnd:     false,
 			Notifications:  true,
-			Autostart:      s.Autostart,
+			Autostart:      true,
 			AutostartDelay: 5,
 		},
 	}

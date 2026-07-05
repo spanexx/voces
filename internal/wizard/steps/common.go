@@ -36,12 +36,13 @@ import (
 // so the step can initialize its widgets from the current values
 // (e.g. preselect the user's previously picked language). The wizard
 // runner passes *wizard.State which satisfies this interface.
+// AutostartDesired was removed in rc1-hotpatch-18 (behavior
+// block is hardcoded; the wizard does not ask about autostart).
 type StateReader interface {
 	LanguageCode() string
 	Hotkey() string
 	Custom() string
 	TTS() bool
-	AutostartDesired() bool
 	StopRecordingKeyCode() string
 	ReadClipboardKeyCode() string
 	ToggleTTSKeyCode() string
@@ -52,13 +53,13 @@ type StateReader interface {
 // Purpose: write view of the wizard State a step's Capture closure
 // takes to commit the user's choice. SetLanguageCode/SetHotkey are
 // no-ops on empty input so a step that the user skipped does not
-// erase the State. SetTTS / SetAutostart are always applied because
-// their zero value (false) is meaningful.
+// erase the State. SetTTS is always applied because its zero
+// value (false) is meaningful. SetAutostart was removed in
+// rc1-hotpatch-18.
 type StateSetter interface {
 	SetLanguageCode(code string)
 	SetHotkey(preset, custom string)
 	SetTTS(enabled bool)
-	SetAutostart(desired bool)
 	SetSecondaryHotkeys(stop, read, toggleTTS, toggleTranscription string)
 }
 

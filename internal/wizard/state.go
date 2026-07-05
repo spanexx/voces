@@ -36,11 +36,12 @@ type State struct {
 	TTSEnabled bool
 	// TTSVoice is the piper voice id the user picked, e.g.
 	// "en_US-lessac-medium". Empty when TTSEnabled is false.
+	// For English (rc1-hotpatch-18) the TTS step is still
+	// skipped, but the wizard auto-fills this with the
+	// English default ("en_US-lessac-medium") so the piper
+	// voice is downloaded and "Read clipboard" can speak the
+	// transcript even when the user did not opt in.
 	TTSVoice string
-	// Autostart is the user's answer to the "start Voces when you
-	// log in?" question (rc1-hotpatch-14). Wired into
-	// config.Behavior.Autostart by defaultConfigFor.
-	Autostart bool
 	// Secondary hotkey fields (rc1-hotpatch-14). The wizard's
 	// SecondaryHotkeys step lets the user customize the four
 	// hotkeys bound to "read clipboard", "toggle TTS", "toggle
@@ -55,15 +56,15 @@ type State struct {
 
 // CID:wizard-state-002 - NewState
 // Purpose: returns a State with the same defaults the welcome step
-// presents (English, ctrl-space, no TTS, no autostart, runtime
-// defaults for the four secondary hotkeys). The hotkey constants
-// are pulled from the setup package so wizard + persistence agree.
+// presents (English, ctrl-space, no TTS, runtime defaults for the
+// four secondary hotkeys). The hotkey constants are pulled from
+// the setup package so wizard + persistence agree. Autostart was
+// removed in rc1-hotpatch-18 — the behavior block is hardcoded.
 func NewState() *State {
 	return &State{
 		Language:               "en",
 		HotkeyPreset:           setup.HotkeyPresetCtrlSpace,
 		TTSEnabled:             false,
-		Autostart:              false,
 		StopRecordingKey:       "",
 		ReadClipboardKey:       "<f10>",
 		ToggleTTSKey:           "<f11>",
@@ -80,7 +81,6 @@ func (s *State) LanguageCode() string             { return s.Language }
 func (s *State) Hotkey() string                   { return s.HotkeyPreset }
 func (s *State) Custom() string                   { return s.CustomHotkey }
 func (s *State) TTS() bool                        { return s.TTSEnabled }
-func (s *State) AutostartDesired() bool           { return s.Autostart }
 func (s *State) StopRecordingKeyCode() string     { return s.StopRecordingKey }
 func (s *State) ReadClipboardKeyCode() string     { return s.ReadClipboardKey }
 func (s *State) ToggleTTSKeyCode() string         { return s.ToggleTTSKey }
@@ -107,9 +107,6 @@ func (s *State) SetHotkey(preset, custom string) {
 }
 func (s *State) SetTTS(enabled bool) {
 	s.TTSEnabled = enabled
-}
-func (s *State) SetAutostart(desired bool) {
-	s.Autostart = desired
 }
 func (s *State) SetSecondaryHotkeys(stop, read, toggleTTS, toggleTranscription string) {
 	if stop != "" {
