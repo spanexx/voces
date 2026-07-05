@@ -12,6 +12,9 @@
 # IMPL §8 / ADR-0001. Behavior:
 #   - Detects /etc/os-release. Warns and exits non-zero on non-Debian/Ubuntu.
 #   - If $EUID != 0, prepends sudo to the package install.
+#   - Runs `apt-get update` first so the t64 detection below is
+#     reliable on a fresh box (without this, resolve_pkg returns the
+#     base name when the cache is empty and apt fails on libasound2).
 #   - Skips packages that dpkg reports as already installed.
 #   - Resolves <name> → <name>t64 on Ubuntu 24.04+ / Debian 13+ /
 #     Linux Mint 22+ where the original is a virtual package.
@@ -54,7 +57,22 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
     echo "🔒 Not running as root; will use sudo for package install."
 fi
 
-# 3. Resolve package names. Some distros (Ubuntu 24.04+, Debian 13+,
+# 3. Refresh the apt cache. On a fresh Linux box (or one where the
+#    user hasn't run apt in a while) the cache is empty, so
+#    `apt-cache show <name>` returns nothing and the resolve_pkg
+#    helper below falls back to the base name (libasound2 etc.)
+#    which then fails with "no installation candidate". Running
+#    update once, up-front, makes the t64 detection reliable and
+#    avoids the user having to manually apt-get update + re-run
+#    this script after the first failure.
+if ! "${SUDO[@]}" apt-get update -y; then
+    echo "" >&2
+    echo "❌ apt-get update failed. Check your network connection and" >&2
+    echo "   the contents of /etc/apt/sources.list." >&2
+    exit 4
+fi
+
+# 4. Resolve package names. Some distros (Ubuntu 24.04+, Debian 13+,
 #    Linux Mint 22+) moved libraries from <name> to <name>t64 to
 #    signal the time_t=64-bit ABI transition. On those distros the
 #    original <name> is either a transitional alias or a pure virtual
@@ -74,7 +92,7 @@ resolve_pkg() {
     fi
 }
 
-# 4. Runtime packages. Keep the list in lockstep with the comment at top.
+# 5. Runtime packages. Keep the list in lockstep with the comment at top.
 PKGS=(
     "$(resolve_pkg libgtk-3-0)"
     libayatana-appindicator3-1
@@ -108,7 +126,7 @@ echo ""
 echo "📦 Installing ${#TO_INSTALL[@]} package(s): ${TO_INSTALL[*]}"
 echo ""
 
-# 6. Run apt. -y to assume yes; --no-install-recommends to keep it minimal.
+# 7. Run apt. -y to assume yes; --no-install-recommends to keep it minimal.
 if ! "${SUDO[@]}" apt-get install -y --no-install-recommends "${TO_INSTALL[@]}"; then
     echo "" >&2
     echo "❌ apt-get install failed. Try:" >&2
