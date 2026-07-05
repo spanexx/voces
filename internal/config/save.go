@@ -6,6 +6,7 @@
  * CID:config-save-001 -> Save
  * CID:config-save-002 -> createDefaultConfig
  * CID:config-save-003 -> defaultConfigTemplate (rc1-hotpatch-15)
+ * CID:config-save-004 -> defaults mirror runtimeDefaults (rc1-hotpatch-16)
  *
  * Quick lookup: rg -n "CID:config-save-" internal/config/save.go
  */
@@ -86,6 +87,16 @@ func createDefaultConfig(dir string) error {
 		}
 	}
 
+	// The behavior + hotkey blocks below are the runtime
+	// default for a fresh install (no config.yaml on disk).
+	// For an existing config.yaml that pre-dates the
+	// behavior/secondary-hotkey additions, Load() applies the
+	// same defaults via runtimeDefaults (see
+	// CID:config-defaults-001) so the in-memory struct is
+	// always populated with the values below. Keep this
+	// template and runtimeDefaults in lock-step — the
+	// regression tests TestCreateDefaultConfig_CompleteBehaviorAndHotkeys
+	// and TestRuntimeDefaults_StayInSync fail loudly on drift.
 	defaultConfig := `# Voces Configuration
 # ===================================
 # Auto-generated default configuration.
