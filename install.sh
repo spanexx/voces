@@ -58,15 +58,32 @@ echo ""
 if [ -n "${VOCES_VERSION:-}" ]; then
     LATEST_TAG="$VOCES_VERSION"
 else
+    # rc1-hotpatch-22: /releases/latest excludes prereleases, so we
+    # list all releases and pick the highest semver tag ourselves.
+    #
+    # The list is a mix of stable tags (e.g. v0.2.0) and prerelease
+    # tags (e.g. v0.2.0-rc9). Per semver, a release is HIGHER than
+    # any prerelease of the same major.minor.patch, but `sort -V`
+    # orders them backwards (treats the prerelease suffix as
+    # additional "bigger" components). So the algorithm is:
+    #   1. Strip the prerelease suffix to find the highest base
+    #      version (e.g. v0.2.0). That decides which major.minor
+    #      wins.
+    #   2. Within that base version, prefer the release over any
+    #      prerelease.
     API_URL="https://api.github.com/repos/${REPO}/releases?per_page=100"
-    LATEST_TAG="$(
+    TAGS="$(
         curl -fsSL "$API_URL" \
             | grep '"tag_name"' \
             | sed 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/' \
-            | grep -E '^v[0-9]+' \
-            | sort -V \
-            | tail -n 1
+            | grep -E '^v[0-9]+'
     )"
+    HIGHEST_BASE="$(printf '%s\n' "$TAGS" | sed 's/-.*//' | sort -V | tail -n 1)"
+    if printf '%s\n' "$TAGS" | grep -qx "$HIGHEST_BASE"; then
+        LATEST_TAG="$HIGHEST_BASE"
+    else
+        LATEST_TAG="$(printf '%s\n' "$TAGS" | grep "^${HIGHEST_BASE}-" | sort -V | tail -n 1)"
+    fi
 fi
 
 if [ -z "${LATEST_TAG:-}" ]; then
