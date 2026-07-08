@@ -1,19 +1,23 @@
 /* Code Map: Hotkey Step
- * - Build: assemble the hotkey step (3 preset radios + custom entry)
- *   and return a *Step with a Capture that commits (preset, custom)
- *   to the wizard State.
+ * - Build: assemble the hotkey step (3 preset radios + custom entry
+ *   + optional stop-recording row) and return a *Step with a Capture
+ *   that commits (preset, custom, stop) to the wizard State.
  * - presetLabels: human-readable labels for the 3 setup.HotkeyPreset
  *   constants. English first; rest matches the IMPL-public-setup §3
  *   ordering.
  *
- * The custom Entry captures a key combination via the
-// "key-press-event" signal. The captured string is stored verbatim
-// in the Entry; on Next the Capture copies the active radio + the
-// Entry text into the State.
+ * The custom Entry captures a key combination via the shared
+ * "key-press-event" wiring in hotkey_stop.go (wireHotkeyEntry). The
+ * captured string is stored verbatim in the Entry; on Next the
+ * Capture copies the active radio + the Entry text into the State.
+ * The optional stop-recording row delegates to
+ * buildSecondaryHotkeyRow so the validation rules stay consistent.
  *
  * CID Index:
  * CID:wizard-hotstep-001 -> Build
  * CID:wizard-hotstep-002 -> presetLabels
+ * (wireHotkeyEntry + buildStopRecordingRow live in hotkey_stop.go
+ *  as CID:wizard-hotstep-003/004)
  *
  * Quick lookup: rg -n "CID:wizard-hotstep-" internal/wizard/steps/
  */
@@ -22,7 +26,6 @@ package steps
 import (
 	"fmt"
 
-	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 
 	"voces/internal/setup"
@@ -125,45 +128,11 @@ func BuildHotkey(win *gtk.Window, stateReader StateReader) (*Step, error) {
 	})
 
 	// Capture key presses into the Entry as a canonical combination
-	// string ("ctrl+shift+f9", "f8", "space"). Modifier-only
-	// presses are ignored. "Weak" combos (single printable key
-	// with no modifier) are rejected — binding a single letter as
-	// a hotkey would intercept that character everywhere.
-	customEntry.Connect("key-press-event", func(_ *gtk.Entry, ev *gdk.Event) bool {
-		ek := gdk.EventKeyNewFromEvent(ev)
-		if ek == nil {
-			return false
-		}
-		state := ek.State()
-		keyval := ek.KeyVal()
-
-		// Pure modifier: keep in-progress combo, hint to add a key.
-		if IsModifierKeyval(keyval) {
-			statusLabel.SetMarkup(`<i>hold the modifier and press a key (F1-F12, letter, etc.)</i>`)
-			return true
-		}
-
-		// Weak combo: no modifier + printable (not special). Warn
-		// and don't update the field.
-		if !HasModifier(state) && !IsValidAloneKeyval(keyval) {
-			weak := BuildCombo(0, keyval)
-			statusLabel.SetMarkup(fmt.Sprintf(
-				`<span foreground="orange">⚠ "%s" is a single printable key and would conflict with typing. `+
-					`Hold a modifier (Ctrl/Alt/Super) or use an F-key (F1-F12).</span>`,
-				weak,
-			))
-			return true
-		}
-
-		// Valid combo: write to field and confirm in green.
-		combo := BuildCombo(state, keyval)
-		if combo == "" {
-			return true
-		}
-		customEntry.SetText(combo)
-		statusLabel.SetMarkup(fmt.Sprintf(`<span foreground="green">✓ %s</span>`, combo))
-		return true
-	})
+	// string ("ctrl+shift+f9", "f8", "space"). The shared wiring
+	// lives in hotkey_stop.go (wireHotkeyEntry) so the validation
+	// rules stay in one place — the secondary-hotkey row uses the
+	// same handler.
+	wireHotkeyEntry(customEntry, statusLabel)
 
 	// Preselect the current state. Default to ctrl-space if no match.
 	initialPreset := setup.HotkeyPresetCtrlSpace
@@ -208,6 +177,17 @@ func BuildHotkey(win *gtk.Window, stateReader StateReader) (*Step, error) {
 	content.PackStart(customEntry, false, false, 0)
 	content.PackStart(statusLabel, false, false, 0)
 
+	// Optional "Stop recording" row lives on the same step so the
+	// user can set up click-to-record (press-to-start, press-to-stop
+	// with a separate key) in one place instead of hunting for it in
+	// the secondary-hotkeys step. buildStopRecordingRow returns the
+	// entry for the Capture closure to read.
+	stopEntry, stopBox, err := buildStopRecordingRow(stateReader)
+	if err != nil {
+		return nil, err
+	}
+	content.PackStart(stopBox, false, false, 0)
+
 	box, back, next, err := newStepContent("Choose your hotkey", content, "Back", "Next")
 	if err != nil {
 		return nil, fmt.Errorf("hotkey: build content: %w", err)
@@ -235,6 +215,16 @@ func BuildHotkey(win *gtk.Window, stateReader StateReader) (*Step, error) {
 			chosenCustom = text
 		}
 		setter.SetHotkey(chosenPreset, chosenCustom)
+
+		// Commit the optional stop-recording key. An empty entry
+		// is a no-op on State (SetSecondaryHotkeys only writes
+		// non-empty values), so leaving the field blank preserves
+		// the hold-to-talk default.
+		stopText, err := stopEntry.GetText()
+		if err != nil {
+			return fmt.Errorf("hotkey: read stop entry: %w", err)
+		}
+		setter.SetSecondaryHotkeys(stopText, "", "", "")
 		return nil
 	}
 

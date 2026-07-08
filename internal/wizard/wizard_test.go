@@ -219,6 +219,68 @@ func TestState_SetTTS(t *testing.T) {
 	}
 }
 
+// CID:wizard-test-013 - TestState_SetSecondaryHotkeys
+// Purpose: SetSecondaryHotkeys writes each non-empty value and
+// leaves the others untouched. This is the no-op-on-empty contract
+// the secondary-hotkeys step relies on when it passes stop="" so
+// it does not clobber the value the user entered on the main
+// hotkey step (rc1-hotpatch-21).
+func TestState_SetSecondaryHotkeys(t *testing.T) {
+	s := NewState()
+
+	// First call: write all four. The initial defaults from
+	// NewState are empty for StopRecordingKey and the three
+	// runtime defaults (<f10>/<f11>/<f12>) for the others, but
+	// SetSecondaryHotkeys overwrites whatever is there.
+	s.SetSecondaryHotkeys("escape", "<ctrl><shift>r", "<f11>", "<f12>")
+	if got := s.StopRecordingKeyCode(); got != "escape" {
+		t.Errorf("after SetSecondaryHotkeys with stop=escape: StopRecordingKey = %q, want %q", got, "escape")
+	}
+	if got := s.ReadClipboardKeyCode(); got != "<ctrl><shift>r" {
+		t.Errorf("after SetSecondaryHotkeys with read=<ctrl><shift>r: ReadClipboardKey = %q, want %q", got, "<ctrl><shift>r")
+	}
+	if got := s.ToggleTTSKeyCode(); got != "<f11>" {
+		t.Errorf("ToggleTTSKey = %q, want %q", got, "<f11>")
+	}
+	if got := s.ToggleTranscriptionKeyCode(); got != "<f12>" {
+		t.Errorf("ToggleTranscriptionKey = %q, want %q", got, "<f12>")
+	}
+
+	// Second call: the secondary-hotkeys step runs after the
+	// main hotkey step and passes stop="" (because stop is owned
+	// by the main step). The other three values are written.
+	// stop MUST stay "escape" — the no-op-on-empty contract.
+	s.SetSecondaryHotkeys("", "<f10>", "", "")
+	if got := s.StopRecordingKeyCode(); got != "escape" {
+		t.Errorf("SetSecondaryHotkeys with stop=\"\" clobbered StopRecordingKey: got %q, want %q", got, "escape")
+	}
+	if got := s.ReadClipboardKeyCode(); got != "<f10>" {
+		t.Errorf("ReadClipboardKey = %q, want %q", got, "<f10>")
+	}
+	if got := s.ToggleTTSKeyCode(); got != "<f11>" {
+		t.Errorf("ToggleTTSKey was clobbered by empty input: got %q, want %q (preserved)", got, "<f11>")
+	}
+	if got := s.ToggleTranscriptionKeyCode(); got != "<f12>" {
+		t.Errorf("ToggleTranscriptionKey was clobbered by empty input: got %q, want %q (preserved)", got, "<f12>")
+	}
+}
+
+// CID:wizard-test-014 - TestState_SetSecondaryHotkeys_EmptyStopFromDefault
+// Purpose: NewState leaves StopRecordingKey empty (hold-to-talk
+// default). SetSecondaryHotkeys with stop="" must not overwrite
+// it with something else — the secondary step relies on this
+// guard.
+func TestState_SetSecondaryHotkeys_EmptyStopFromDefault(t *testing.T) {
+	s := NewState()
+	if got := s.StopRecordingKeyCode(); got != "" {
+		t.Fatalf("NewState should leave StopRecordingKey empty, got %q", got)
+	}
+	s.SetSecondaryHotkeys("", "<f10>", "<f11>", "<f12>")
+	if got := s.StopRecordingKeyCode(); got != "" {
+		t.Errorf("SetSecondaryHotkeys with stop=\"\" wrote %q to StopRecordingKey; want \"\" (no-op)", got)
+	}
+}
+
 // CID:wizard-test-009 - TestStepLanguage_DefaultIsEnglish
 // Purpose: the language step's default selection is English. The
 // IMPL-public-setup §3 contract is that the picker preselects row

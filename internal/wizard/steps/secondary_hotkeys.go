@@ -1,19 +1,28 @@
 /* Code Map: Secondary Hotkeys Step
- * - Build: assemble a 4-row editor for the four secondary hotkey
- *   fields (stop_recording, read_clipboard, toggle_tts,
- *   toggle_transcription). Each row is a label + an Entry that
- *   captures a key combination via "key-press-event" (same capture
- *   pattern as the main hotkey step, so the modifier / F-key rules
- *   stay consistent).
+ * - Build: assemble a 3-row editor for the three remaining
+ *   secondary hotkey fields (read_clipboard, toggle_tts,
+ *   toggle_transcription). The stop_recording field used to live
+ *   here; it moved to the main hotkey step (hotkey_stop.go) so
+ *   the user can set up click-to-record (press-to-start, press-
+ *   to-stop) right where they pick the record key.
+ *   Each row is a label + an Entry that captures a key
+ *   combination via "key-press-event" (same capture pattern as
+ *   the main hotkey step, so the modifier / F-key rules stay
+ *   consistent).
  *
  * The per-row builder lives in secondary_hotkey_row.go so this
  * file stays under the 250-line cap enforced by
  * scripts/check-file-size.sh.
  *
  * rc1-hotpatch-14: the wizard's generatedConfig now writes
- * defaults for the four secondary hotkeys (<f10>, <f11>, <f12>,
- * '' for stop_recording). This step gives the user a chance to
- * customize them instead of hand-editing the YAML later.
+ * defaults for the three secondary hotkeys (<f10>, <f11>, <f12>).
+ * This step gives the user a chance to customize them instead
+ * of hand-editing the YAML later.
+ *
+ * rc1-hotpatch-21: stop_recording moved to the main hotkey step.
+ * The Capture closure still calls SetSecondaryHotkeys with stop=""
+ * so the no-op-on-empty contract keeps the State value the user
+ * entered on the main step.
  *
  * CID Index:
  * CID:wizard-secondhk-001 -> Build
@@ -44,13 +53,18 @@ type secondaryHotkeyRow struct {
 }
 
 // CID:wizard-secondhk-001 - BuildSecondaryHotkeys
-// Purpose: build the 4-row secondary hotkey editor. Each row is
+// Purpose: build the 3-row secondary hotkey editor. Each row is
 // wired identically to the main hotkey step's custom capture:
 // pressing a modifier + key writes the canonical combo into the
 // Entry and a green ✓ into the status label; a single printable
 // key with no modifier is rejected with an orange warning. The
 // "Reset" button next to each row restores the entry to the
 // pre-fill value.
+//
+// The stop_recording field is NOT here — it lives on the main
+// hotkey step (hotkey_stop.go). The Capture closure below still
+// calls SetSecondaryHotkeys with stop="" so a no-op preserves
+// whatever the user picked on the main step.
 //
 // Back is set so the user can return to the previous step.
 func BuildSecondaryHotkeys(win *gtk.Window, stateReader StateReader) (*Step, error) {
@@ -60,23 +74,18 @@ func BuildSecondaryHotkeys(win *gtk.Window, stateReader StateReader) (*Step, err
 		reader func(StateReader) string
 	}{
 		{
-			title: "Stop recording",
-			hint:  "Optional. Hold the record key to stop, or pick a separate key.",
-			reader: func(r StateReader) string { return r.StopRecordingKeyCode() },
-		},
-		{
-			title: "Read clipboard aloud",
-			hint:  "Reads the current clipboard contents through the TTS voice.",
+			title:  "Read clipboard aloud",
+			hint:   "Reads the current clipboard contents through the TTS voice.",
 			reader: func(r StateReader) string { return r.ReadClipboardKeyCode() },
 		},
 		{
-			title: "Toggle TTS on/off",
-			hint:  "Enables or disables text-to-speech without leaving the focused field.",
+			title:  "Toggle TTS on/off",
+			hint:   "Enables or disables text-to-speech without leaving the focused field.",
 			reader: func(r StateReader) string { return r.ToggleTTSKeyCode() },
 		},
 		{
-			title: "Toggle transcription on/off",
-			hint:  "Pauses or resumes the hotkey without quitting Voces.",
+			title:  "Toggle transcription on/off",
+			hint:   "Pauses or resumes the hotkey without quitting Voces.",
 			reader: func(r StateReader) string { return r.ToggleTranscriptionKeyCode() },
 		},
 	}
@@ -88,9 +97,10 @@ func BuildSecondaryHotkeys(win *gtk.Window, stateReader StateReader) (*Step, err
 	}
 
 	intro, err := gtk.LabelNew(
-		"Customize the four secondary hotkeys. Each row captures a key combination " +
+		"Customize the three secondary hotkeys. Each row captures a key combination " +
 			"the same way the main hotkey step does. Leave a row empty to use the " +
-			"runtime default (<f10> / <f11> / <f12>).",
+			"runtime default (<f10> / <f11> / <f12>). The stop-recording key is " +
+			"configured on the main hotkey step.",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("secondaryhk: intro: %w", err)
@@ -114,27 +124,25 @@ func BuildSecondaryHotkeys(win *gtk.Window, stateReader StateReader) (*Step, err
 	}
 
 	capture := func(setter StateSetter) error {
-		stop, err := built[0].entry.GetText()
-		if err != nil {
-			return fmt.Errorf("secondaryhk: read stop: %w", err)
-		}
-		read, err := built[1].entry.GetText()
+		read, err := built[0].entry.GetText()
 		if err != nil {
 			return fmt.Errorf("secondaryhk: read clipboard: %w", err)
 		}
-		toggleTTS, err := built[2].entry.GetText()
+		toggleTTS, err := built[1].entry.GetText()
 		if err != nil {
 			return fmt.Errorf("secondaryhk: read toggle_tts: %w", err)
 		}
-		toggleTr, err := built[3].entry.GetText()
+		toggleTr, err := built[2].entry.GetText()
 		if err != nil {
 			return fmt.Errorf("secondaryhk: read toggle_transcription: %w", err)
 		}
-		// An empty field means "use the runtime default" — the
-		// setup.defaultConfigFor already fills in <f10>/<f11>/<f12>;
-		// stop_recording stays empty (intentional, the hold-binding
-		// model has no separate stop key).
-		setter.SetSecondaryHotkeys(stop, read, toggleTTS, toggleTr)
+		// stop_recording is configured on the main hotkey step.
+		// Pass "" so the no-op-on-empty contract in
+		// SetSecondaryHotkeys leaves whatever the user picked
+		// there untouched. The three runtime defaults
+		// (<f10> / <f11> / <f12>) are filled in by
+		// setup.defaultConfigFor when a row is left empty.
+		setter.SetSecondaryHotkeys("", read, toggleTTS, toggleTr)
 		return nil
 	}
 

@@ -1,13 +1,12 @@
 /* Code Map: Secondary Hotkey Row Builder
- * - buildSecondaryHotkeyRow: builds one row of the 4-row
+ * - buildSecondaryHotkeyRow: builds one row of the 3-row
  *   secondary hotkey editor. Splits out from secondary_hotkeys.go
  *   so the Build function stays readable.
  *
- * The capture wiring matches the main hotkey step's custom
- * entry: modifier+key writes the combo, single printable key
- * is rejected with an orange warning, F1-F12 alone is
- * accepted. The Reset button restores the entry to the
- * StateReader pre-fill value.
+ * The capture wiring delegates to the shared wireHotkeyEntry
+ * helper in hotkey_stop.go so the modifier + F-key validation
+ * rules stay in a single place — the main hotkey step's custom
+ * entry uses the same handler.
  *
  * CID Index:
  * CID:wizard-secondhk-002 -> buildSecondaryHotkeyRow
@@ -19,14 +18,13 @@ package steps
 import (
 	"fmt"
 
-	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 )
 
 // CID:wizard-secondhk-002 - buildSecondaryHotkeyRow
 // Purpose: build a single label + entry + status + reset-button
-// row. The capture wiring matches the main hotkey step's
-// custom entry.
+// row. The capture wiring is delegated to wireHotkeyEntry (in
+// hotkey_stop.go) so the validation rules stay in one place.
 //
 // If stateReader is non-nil, the entry is pre-filled with the
 // stored value. The Reset button restores the entry to the
@@ -99,36 +97,11 @@ func buildSecondaryHotkeyRow(title, hint string, reader func(StateReader) string
 		initial:   initial,
 	}
 
-	// Wire the capture: same rules as the main hotkey step.
-	entry.Connect("key-press-event", func(_ *gtk.Entry, ev *gdk.Event) bool {
-		ek := gdk.EventKeyNewFromEvent(ev)
-		if ek == nil {
-			return false
-		}
-		state := ek.State()
-		keyval := ek.KeyVal()
-
-		if IsModifierKeyval(keyval) {
-			status.SetMarkup(`<i>hold the modifier and press a key (F1-F12, letter, etc.)</i>`)
-			return true
-		}
-		if !HasModifier(state) && !IsValidAloneKeyval(keyval) {
-			weak := BuildCombo(0, keyval)
-			status.SetMarkup(fmt.Sprintf(
-				`<span foreground="orange">⚠ "%s" is a single printable key. `+
-					`Hold a modifier or use an F-key (F1-F12).</span>`,
-				weak,
-			))
-			return true
-		}
-		combo := BuildCombo(state, keyval)
-		if combo == "" {
-			return true
-		}
-		entry.SetText(combo)
-		status.SetMarkup(fmt.Sprintf(`<span foreground="green">✓ %s</span>`, combo))
-		return true
-	})
+	// Shared key-press capture: same rules as the main hotkey
+	// step. Lives in hotkey_stop.go so the validation (modifier
+	// handling, F-key acceptance, weak-combo rejection) is in a
+	// single place.
+	wireHotkeyEntry(entry, status)
 	// Select-all on focus so a new keypress overwrites the field.
 	entry.Connect("focus-in-event", func() {
 		entry.SelectRegion(0, -1)
