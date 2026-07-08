@@ -5,9 +5,12 @@
  *   a setup ↔ wizard import cycle (wizard already imports setup
  *   for the HotkeyPreset* constants).
  *
- * Routing rule (ADR-0004 + rc1-hotpatch-19):
- *   - Language == "en"        → whisper model ggml-small.en.bin
- *   - Language != "en"        → whisper model ggml-base.bin
+ * Routing rule (rc1-hotpatch-24):
+ *   - Model comes from w.Model verbatim. The Language step seeds
+ *     w.Model with wizard.DefaultModelForLanguage(w.Language) so
+ *     a user who never reaches the Model step still gets the
+ *     ADR-0004 routing (en → ggml-small.en.bin, anything else
+ *     → ggml-base.bin). The Model step lets the user override.
  *   - TTSEnabled && TTSVoice  → PiperVoice = TTSVoice
  *   - !TTSEnabled             → PiperVoice = ""
  *   - Language == "en"        → PiperVoice = "en_US-lessac-medium"
@@ -32,31 +35,30 @@ import (
 	"voces/internal/wizard"
 )
 
-// whisperEnglishModel and whisperMultilingualModel are the file names
-// from the DefaultManifest. Kept as named constants (not magic strings)
-// so a future change in either is a one-line edit.
-const (
-	whisperEnglishModel      = "ggml-small.en.bin"
-	whisperMultilingualModel = "ggml-base.bin"
-	// piperEnglishVoice is the default piper voice installed
-	// for English installs (rc1-hotpatch-19). Used even when
-	// the user does not opt into TTS so the read-clipboard
-	// hotkey has a voice to speak with.
-	piperEnglishVoice = "en_US-lessac-medium"
-)
+// piperEnglishVoice is the default piper voice installed for
+// English installs (rc1-hotpatch-19). Used even when the user
+// does not opt into TTS so the read-clipboard hotkey has a
+// voice to speak with.
+const piperEnglishVoice = "en_US-lessac-medium"
 
 // CID:wizardcli-translate-001 - StateFromWizard
 // Purpose: pure conversion. No disk I/O, no GTK. Tested via
 // TestStateFromWizard_* in translate_test.go. The cmd layer calls
 // this after wizard.RunFull returns, then calls setup.EnsureModels
 // + setup.Apply.
+//
+// rc1-hotpatch-24: model comes from w.Model (the wizard's Model
+// step writes there). When w.Model is empty (e.g. a hand-rolled
+// State that pre-dates the picker), falls back to
+// wizard.DefaultModelForLanguage(w.Language) so the ADR-0004
+// routing still applies.
 func StateFromWizard(w *wizard.State, appVersion string) *setup.State {
 	if w == nil {
 		w = wizard.NewState()
 	}
-	whisperModel := whisperMultilingualModel
-	if w.Language == "en" {
-		whisperModel = whisperEnglishModel
+	whisperModel := w.Model
+	if whisperModel == "" {
+		whisperModel = wizard.DefaultModelForLanguage(w.Language)
 	}
 	piperVoice := ""
 	switch {

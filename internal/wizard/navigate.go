@@ -46,6 +46,9 @@ func buildStepRegistry() map[stepKey]stepRenderer {
 		stepLanguage: func(win *gtk.Window, s *State) (*steps.Step, error) {
 			return steps.BuildLanguage(win, s)
 		},
+		stepModel: func(win *gtk.Window, s *State) (*steps.Step, error) {
+			return steps.BuildModel(win, s)
+		},
 		stepHotkey: func(win *gtk.Window, s *State) (*steps.Step, error) {
 			return steps.BuildHotkey(win, s)
 		},
@@ -74,8 +77,14 @@ func buildStepRegistry() map[stepKey]stepRenderer {
 // rc1-hotpatch-14: the Behavior and SecondaryHotkeys steps are
 // always shown (they are short and have sensible defaults for
 // users who want to skip the customization).
+//
+// rc1-hotpatch-24: the Model step is inserted right after the
+// Language step. The picker filters by the chosen language
+// scope (en → .en variants, anything else → multilingual), and
+// the user's pick is preselected on every re-render (so a
+// Back into the model step keeps the prior choice).
 func buildStepChain(state *State) []stepKey {
-	keys := []stepKey{stepWelcome, stepLanguage, stepHotkey}
+	keys := []stepKey{stepWelcome, stepLanguage, stepModel, stepHotkey}
 	if steps.ShouldShow(state.LanguageCode()) {
 		keys = append(keys, stepTTS)
 	}

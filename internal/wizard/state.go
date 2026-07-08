@@ -51,13 +51,23 @@ type State struct {
 	ReadClipboardKey       string
 	ToggleTTSKey           string
 	ToggleTranscriptionKey string
+	// Model is the whisper model file the user picked (or the
+	// language-implied default if they did not reach the model
+	// step). rc1-hotpatch-24 (docs/wizard-model-picker) — chosen
+	// from the model step's tiny/base/small/medium matrix per
+	// language scope. Examples: "ggml-base.en.bin",
+	// "ggml-small.bin", "ggml-tiny.bin". Empty means "use
+	// DefaultModelForLanguage(Language)".
+	Model string
 }
 
 // CID:wizard-state-002 - NewState
 // Purpose: returns a State with the same defaults the wizard presents
 // (English, ctrl-space, no TTS, autostart enabled, runtime defaults
-// for the four secondary hotkeys). The hotkey constants are pulled
-// from the setup package so wizard + persistence agree.
+// for the four secondary hotkeys, small.en for the model). The
+// hotkey constants are pulled from the setup package so wizard +
+// persistence agree. The model default follows ADR-0004 (English →
+// small.en, anything else → base).
 func NewState() *State {
 	return &State{
 		Language:               "en",
@@ -68,7 +78,22 @@ func NewState() *State {
 		ReadClipboardKey:       "<f10>",
 		ToggleTTSKey:           "<f11>",
 		ToggleTranscriptionKey: "<f12>",
+		Model:                  DefaultModelForLanguage("en"),
 	}
+}
+
+// DefaultModelForLanguage returns the model file name the wizard
+// should use when the user has not made an explicit pick. English
+// gets the small.en variant (ADR-0004 — best English accuracy in the
+// v1 set); every other language gets the base multilingual variant.
+// Centralised here so the language step's commit handler, the
+// runtime fallback in defaultConfigFor, and the test in
+// state_test.go can all reference one source of truth.
+func DefaultModelForLanguage(lang string) string {
+	if lang == "en" {
+		return "ggml-small.en.bin"
+	}
+	return "ggml-base.bin"
 }
 
 // CID:wizard-state-003 - Getters
@@ -87,6 +112,11 @@ func (s *State) ToggleTTSKeyCode() string         { return s.ToggleTTSKey }
 func (s *State) ToggleTranscriptionKeyCode() string {
 	return s.ToggleTranscriptionKey
 }
+
+// ModelFile returns the whisper model file the user has chosen (or
+// the language-implied default set by NewState). Named with the
+// "File" suffix to avoid colliding with the Model field.
+func (s *State) ModelFile() string { return s.Model }
 
 // CID:wizard-state-004 - Setters
 // Purpose: methods that implement steps.StateSetter. Steps call
@@ -123,5 +153,14 @@ func (s *State) SetSecondaryHotkeys(stop, read, toggleTTS, toggleTranscription s
 	}
 	if toggleTranscription != "" {
 		s.ToggleTranscriptionKey = toggleTranscription
+	}
+}
+
+// SetModel stores the chosen whisper model file name. Empty input
+// is a no-op (the runtime falls back to DefaultModelForLanguage).
+// The model step calls this from its radio-button "toggled" handler.
+func (s *State) SetModel(filename string) {
+	if filename != "" {
+		s.Model = filename
 	}
 }

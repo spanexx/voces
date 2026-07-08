@@ -476,6 +476,152 @@ func TestApply_HonorsWizardSecondaryHotkey(t *testing.T) {
 	}
 }
 
+// TestApply_HonorsWizardModel (rc1-hotpatch-24): the wizard's
+// chosen model (setup.State.WhisperModel) flows into
+// config.yaml's transcription.whisper_cpp.model field. After
+// Phase 5 the model step is the source of truth; no ADR-0004
+// routing applies in defaultConfigFor. Picks a non-default
+// model (base.en instead of the small.en default) to prove
+// the field actually follows the State.
+func TestApply_HonorsWizardModel(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	state := &State{
+		AppVersion:   "v0.1.0",
+		Language:     "en",
+		WhisperModel: "ggml-base.en.bin", // user picked base.en on the picker
+		HotkeyPreset: HotkeyPresetCtrlSpace,
+	}
+	if err := Apply(state, DefaultManifest()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	cfgPath := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "voces", "config.yaml")
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// config.yaml must reference the chosen model (its basename
+	// appears in the canonical model path).
+	if !contains(data, []byte("ggml-base.en.bin")) {
+		t.Errorf("config.yaml missing chosen model %q:\n%s", "ggml-base.en.bin", data)
+	}
+	// The default small.en must NOT appear — the user explicitly
+	// chose base.en on the picker. This is the regression guard
+	// for the rc1-hotpatch-24 contract.
+	if contains(data, []byte("ggml-small.en.bin")) {
+		t.Errorf("config.yaml still has the small.en default after user picked base.en:\n%s", data)
+	}
+}
+
+// TestApply_PreservesUserModel (rc1-hotpatch-24): the "user
+// wins" rule for the model field. If a user re-runs the wizard
+// but had previously picked a non-default model (or hand-edited
+// config.yaml to point at a different valid model in the
+// manifest), the pre-existing value survives. This is analogous
+// to preserveHotkeys / preserveBinaryPath.
+func TestApply_PreservesUserModel(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", cfgDir)
+	appCfgDir := filepath.Join(cfgDir, "voces")
+	if err := os.MkdirAll(appCfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Pre-existing config with the user's previous pick
+	// (ggml-tiny.en.bin — a valid manifest entry that isn't the
+	// default). Use the basename; defaultConfigFor writes the
+	// canonical path which the preserve helper keeps intact.
+	preExisting := `transcription:
+  whisper_cpp:
+    model: ` + whisperModelPathForTestForPreserve("ggml-tiny.en.bin") + `
+`
+	if err := os.WriteFile(filepath.Join(appCfgDir, "config.yaml"), []byte(preExisting), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	state := &State{
+		AppVersion:   "v0.1.0",
+		Language:     "en",
+		WhisperModel: "ggml-small.en.bin", // wizard's new default
+		HotkeyPreset: HotkeyPresetCtrlSpace,
+	}
+	if err := Apply(state, DefaultManifest()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(appCfgDir, "config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// User's previous pick must survive.
+	if !contains(data, []byte("ggml-tiny.en.bin")) {
+		t.Errorf("user's previous model %q was stomped by the wizard's default:\n%s", "ggml-tiny.en.bin", data)
+	}
+	// The wizard's default must NOT have replaced the user's pick.
+	if contains(data, []byte("ggml-small.en.bin")) {
+		t.Errorf("preserveModel failed: config.yaml has the wizard's default %q, expected only %q:\n%s",
+			"ggml-small.en.bin", "ggml-tiny.en.bin", data)
+	}
+}
+
+// TestApply_DropsPhantomModel (rc1-hotpatch-24): if a user
+// hand-edited config.yaml to point at a model not in the
+// manifest (e.g. a typo, a deleted file, a fine-tuned model
+// we don't ship), the preserve rule is conservative — it
+// only keeps the previous value if it's a known manifest
+// entry. Otherwise the wizard's pick wins, dropping the
+// phantom so the runtime can start.
+func TestApply_DropsPhantomModel(t *testing.T) {
+	cfgDir := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", cfgDir)
+	appCfgDir := filepath.Join(cfgDir, "voces")
+	if err := os.MkdirAll(appCfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Pre-existing config with a phantom model.
+	preExisting := `transcription:
+  whisper_cpp:
+    model: /home/user/.local/share/voces/models/ggml-fake.bin
+`
+	if err := os.WriteFile(filepath.Join(appCfgDir, "config.yaml"), []byte(preExisting), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	state := &State{
+		AppVersion:   "v0.1.0",
+		Language:     "en",
+		WhisperModel: "ggml-small.en.bin",
+		HotkeyPreset: HotkeyPresetCtrlSpace,
+	}
+	if err := Apply(state, DefaultManifest()); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(appCfgDir, "config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Phantom must be gone.
+	if contains(data, []byte("ggml-fake.bin")) {
+		t.Errorf("phantom model should be dropped, but it's still in config.yaml:\n%s", data)
+	}
+	// Wizard's pick must be present.
+	if !contains(data, []byte("ggml-small.en.bin")) {
+		t.Errorf("wizard's pick %q missing after phantom was dropped:\n%s", "ggml-small.en.bin", data)
+	}
+}
+
+// whisperModelPathForTestForPreserve mirrors
+// whisperModelPathForTest (defined later in this file) but is
+// referenced from TestApply_PreservesUserModel above. We keep
+// the canonical-path construction here so the pre-existing
+// config string matches what defaultConfigFor would have
+// written, which is the scenario preserveModel is designed
+// to protect.
+func whisperModelPathForTestForPreserve(name string) string {
+	return filepath.Join(os.Getenv("XDG_DATA_HOME"), "voces", "models", "whisper", name)
+}
+
 // contains is a tiny helper kept local to this test file to avoid pulling
 // in strings.Contains from the test binary twice. Returns true if needle
 // appears anywhere in haystack.

@@ -46,6 +46,11 @@ type StateReader interface {
 	ReadClipboardKeyCode() string
 	ToggleTTSKeyCode() string
 	ToggleTranscriptionKeyCode() string
+	// ModelFile returns the whisper model file the user has
+	// chosen (or the language-implied default).
+	// rc1-hotpatch-24 — the model step preselects the radio
+	// whose file name equals this value.
+	ModelFile() string
 }
 
 // CID:wizard-step-004 - StateSetter
@@ -60,6 +65,10 @@ type StateSetter interface {
 	SetTTS(enabled bool)
 	SetAutostart(desired bool)
 	SetSecondaryHotkeys(stop, read, toggleTTS, toggleTranscription string)
+	// SetModel commits the chosen whisper model file. Empty
+	// input is a no-op so a skipped model step does not erase
+	// the State. rc1-hotpatch-24.
+	SetModel(filename string)
 }
 
 // CID:wizard-step-001 - Step

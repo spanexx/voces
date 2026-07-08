@@ -25,21 +25,28 @@ import (
 // then config.yaml). Single entry point for the wizard's commit
 // step.
 // Uses: Save (state), defaultConfigFor, preserveBinaryPath,
-// preserveHotkeys, loadConfigRaw, configPath.
+// preserveHotkeys, preserveModel, loadConfigRaw, configPath.
 // Used by: cmd/voces/main.go (wizard commit step), test suite.
 
 // Apply persists the wizard result to disk. Writes state.json
 // (atomic .tmp + rename) and a fresh config.yaml with model paths
 // derived from the state and engine binary paths from
-// paths.EnginesDir(). Pre-existing user-set binary paths and
-// secondary hotkey fields are preserved (IMPL §3 Phase 5 contract).
+// paths.EnginesDir(). Pre-existing user-set binary paths,
+// secondary hotkey fields, and (rc1-hotpatch-24) the previously
+// chosen whisper model are preserved (IMPL §3 Phase 5 contract).
+//
+// manifest may be nil; Apply falls back to DefaultManifest so
+// preserveModel still has a manifest to validate against.
 //
 // State.json is written first so a partial failure leaves a
 // recoverable record of what the user picked, even if config.yaml
 // write fails.
-func Apply(s *State, _ *Manifest) error {
+func Apply(s *State, manifest *Manifest) error {
 	if s == nil {
 		return fmt.Errorf("Apply: state is nil")
+	}
+	if manifest == nil {
+		manifest = DefaultManifest()
 	}
 	if err := Save(s); err != nil {
 		return fmt.Errorf("Apply: save state: %w", err)
@@ -51,7 +58,7 @@ func Apply(s *State, _ *Manifest) error {
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
 		return fmt.Errorf("Apply: ensure config dir: %w", err)
 	}
-	doc, err := buildConfigDoc(s, cfgPath)
+	doc, err := buildConfigDoc(s, cfgPath, manifest)
 	if err != nil {
 		return fmt.Errorf("Apply: build config: %w", err)
 	}
@@ -80,17 +87,20 @@ func configPath() (string, error) {
 // preserve.go — generates the wizard's defaults, then layers
 // pre-existing user values on top.
 // Uses: defaultConfigFor, preserveBinaryPath, preserveHotkeys,
-// loadConfigRaw, yaml.Marshal.
+// preserveModel (rc1-hotpatch-24), loadConfigRaw, yaml.Marshal.
 // Used by: Apply.
 
 // buildConfigDoc assembles the YAML body. Loads the pre-existing
-// file (if any) so user-set binary paths and secondary hotkey
-// fields are preserved.
-func buildConfigDoc(s *State, cfgPath string) ([]byte, error) {
+// file (if any) so user-set binary paths, secondary hotkey
+// fields, and the previously chosen whisper model are preserved.
+// manifest is threaded through so preserveModel can validate the
+// pre-existing basename against the shipped model set.
+func buildConfigDoc(s *State, cfgPath string, manifest *Manifest) ([]byte, error) {
 	cfg := defaultConfigFor(s)
 	if existing, err := loadConfigRaw(cfgPath); err == nil {
 		preserveBinaryPath(&cfg, existing)
 		preserveHotkeys(&cfg, existing)
+		preserveModel(&cfg, existing, manifest)
 	}
 	out, err := yaml.Marshal(cfg)
 	if err != nil {

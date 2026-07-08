@@ -30,6 +30,13 @@ type stepKey int
 const (
 	stepWelcome stepKey = iota
 	stepLanguage
+	// stepModel (rc1-hotpatch-24) lets the user pick the
+	// whisper model (tiny/base/small/medium × en/multilingual)
+	// from a radio list. Sits right after stepLanguage so the
+	// picker filters by the language they just chose. The default
+	// is the ADR-0004 routing (en → small.en, anything else →
+	// base); the user can override before continuing.
+	stepModel
 	stepHotkey
 	stepTTS
 	// stepBehavior (rc1-hotpatch-14) asks whether Voces should

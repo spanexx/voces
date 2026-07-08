@@ -1,18 +1,60 @@
 {
   "whisper": {
+    "ggml-tiny.en.bin": {
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin",
+      "size_bytes": 77704153,
+      "language": "en",
+      "tier": "tiny-en",
+      "display_name": "Tiny (English, ~75 MB)"
+    },
+    "ggml-base.en.bin": {
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin",
+      "size_bytes": 147964480,
+      "language": "en",
+      "tier": "base-en",
+      "display_name": "Base (English, ~141 MB)"
+    },
     "ggml-small.en.bin": {
       "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin",
       "size_bytes": 488479232,
       "language": "en",
       "tier": "small-en",
-      "display_name": "Small (English, ~466 MB)"
+      "display_name": "Small (English, ~466 MB) — recommended for English"
+    },
+    "ggml-medium.en.bin": {
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin",
+      "size_bytes": 1533249024,
+      "language": "en",
+      "tier": "medium-en",
+      "display_name": "Medium (English, ~1.5 GB)"
+    },
+    "ggml-tiny.bin": {
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+      "size_bytes": 77704153,
+      "language": "multilingual",
+      "tier": "tiny",
+      "display_name": "Tiny (multilingual, ~75 MB)"
     },
     "ggml-base.bin": {
       "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
       "size_bytes": 147964480,
       "language": "multilingual",
       "tier": "base",
-      "display_name": "Base (multilingual, ~141 MB)"
+      "display_name": "Base (multilingual, ~141 MB) — recommended for non-English"
+    },
+    "ggml-small.bin": {
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
+      "size_bytes": 488479232,
+      "language": "multilingual",
+      "tier": "small",
+      "display_name": "Small (multilingual, ~466 MB)"
+    },
+    "ggml-medium.bin": {
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+      "size_bytes": 1533249024,
+      "language": "multilingual",
+      "tier": "medium",
+      "display_name": "Medium (multilingual, ~1.5 GB)"
     }
   },
   "piper": {

@@ -1,12 +1,14 @@
 /* Code Map: setup "user wins" preservation
  * - preserveBinaryPath: keep user-set engine binary paths
  * - preserveHotkeys: keep user-set secondary hotkey fields
+ * - preserveModel: keep user-set whisper model when still in manifest
  * - loadConfigRaw: read pre-existing config.yaml into a map
  *
  * CID Index:
  * CID:setup-preserve-001 -> preserveBinaryPath
  * CID:setup-preserve-002 -> preserveHotkeys
  * CID:setup-preserve-003 -> loadConfigRaw
+ * CID:setup-preserve-004 -> preserveModel (rc1-hotpatch-24)
  *
  * Quick lookup: rg -n "CID:setup-preserve-" internal/setup/preserve.go
  */
@@ -14,6 +16,7 @@ package setup
 
 import (
 	"os"
+	"path/filepath"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -82,6 +85,54 @@ func preserveHotkeys(cfg *generatedConfig, existing map[string]any) {
 	}
 }
 
+// CID:setup-preserve-004 - preserveModel (rc1-hotpatch-24)
+// Purpose: the "user wins" rule for the whisper model field.
+// If the pre-existing config.yaml pointed at a model whose
+// basename is still in the manifest, keep that exact value
+// (full path) in the new config — the wizard's default is
+// not allowed to clobber a user hand-edit or a previous
+// picker pick. If the basename is unknown to the manifest
+// (typo, deleted file, fine-tuned model we don't ship), the
+// helper no-ops and defaultConfigFor's wizard-driven value
+// wins, so the runtime can start.
+// Uses: filepath.Base, manifest.Whisper map.
+// Used by: buildConfigDoc.
+
+// preserveModel reads the pre-existing
+// transcription.whisper_cpp.model value. If the basename
+// (the last path segment) is a known manifest entry, the
+// existing full path is kept on cfg. Otherwise the helper
+// no-ops so defaultConfigFor's wizard-driven value flows
+// through. manifest may be nil (treated as "unknown
+// manifest"); in that case preserveModel no-ops too — the
+// wizard's pick is the only safe answer when we can't
+// validate the previous value.
+func preserveModel(cfg *generatedConfig, existing map[string]any, manifest *Manifest) {
+	if manifest == nil {
+		return
+	}
+	t, ok := existing["transcription"].(map[string]any)
+	if !ok {
+		return
+	}
+	w, ok := t["whisper_cpp"].(map[string]any)
+	if !ok {
+		return
+	}
+	v, ok := w["model"].(string)
+	if !ok || v == "" {
+		return
+	}
+	base := filepath.Base(v)
+	if _, ok := manifest.Whisper[base]; !ok {
+		// Phantom (typo, fine-tuned model, deleted file) —
+		// let the wizard's pick replace it so the runtime
+		// can find a model that actually exists.
+		return
+	}
+	cfg.Transcription.WhisperCPP.Model = v
+}
+
 // CID:setup-preserve-003 - loadConfigRaw
 // Purpose: read the pre-existing config.yaml into a generic map
 // for the preserve* helpers. Returns an empty map (NOT an error)
@@ -107,3 +158,4 @@ func loadConfigRaw(cfgPath string) (map[string]any, error) {
 	}
 	return raw, nil
 }
+

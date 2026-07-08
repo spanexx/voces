@@ -81,23 +81,75 @@ func LoadManifest(path string) (*Manifest, error) {
 // URLs. Used when models.json is missing (dev mode) and as a sanity check in
 // tests. The real tarball ships models.json with the URLs frozen at build
 // time; this is a fallback only.
+//
+// The wizard exposes four tiers per language scope (tiny/base/small/medium)
+// so the user can trade download size against accuracy. The .en variants
+// are English-only and slightly smaller than their multilingual siblings;
+// the multilingual variants cover ~99 languages. Sizes are pinned at
+// release time against whisper.cpp's HuggingFace repo. See
+// docs/wizard-model-picker/PRD-wizard-model-picker.md (AC-7) for the
+// acceptance criterion this matrix satisfies.
 func DefaultManifest() *Manifest {
 	const baseURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
 	return &Manifest{
 		Whisper: map[string]WhisperModelMeta{
+			// English-only variants (.en).
+			"ggml-tiny.en.bin": {
+				URL:         baseURL + "/ggml-tiny.en.bin",
+				SizeBytes:   77704153, // ~75 MB; pinned at IMPL time
+				Language:    "en",
+				Tier:        "tiny-en",
+				DisplayName: "Tiny (English, ~75 MB)",
+			},
+			"ggml-base.en.bin": {
+				URL:         baseURL + "/ggml-base.en.bin",
+				SizeBytes:   147964480, // ~141 MB; pinned at IMPL time
+				Language:    "en",
+				Tier:        "base-en",
+				DisplayName: "Base (English, ~141 MB)",
+			},
 			"ggml-small.en.bin": {
 				URL:         baseURL + "/ggml-small.en.bin",
 				SizeBytes:   488479232, // ~466 MB; pinned at IMPL time
 				Language:    "en",
 				Tier:        "small-en",
-				DisplayName: "Small (English, 466 MB)",
+				DisplayName: "Small (English, ~466 MB) — recommended for English",
+			},
+			"ggml-medium.en.bin": {
+				URL:         baseURL + "/ggml-medium.en.bin",
+				SizeBytes:   1533249024, // ~1.5 GB; pinned at IMPL time
+				Language:    "en",
+				Tier:        "medium-en",
+				DisplayName: "Medium (English, ~1.5 GB)",
+			},
+			// Multilingual variants (cover ~99 languages).
+			"ggml-tiny.bin": {
+				URL:         baseURL + "/ggml-tiny.bin",
+				SizeBytes:   77704153, // ~75 MB
+				Language:    "multilingual",
+				Tier:        "tiny",
+				DisplayName: "Tiny (multilingual, ~75 MB)",
 			},
 			"ggml-base.bin": {
 				URL:         baseURL + "/ggml-base.bin",
-				SizeBytes:   147964480, // ~141 MB; pinned at IMPL time
+				SizeBytes:   147964480, // ~141 MB
 				Language:    "multilingual",
 				Tier:        "base",
-				DisplayName: "Base (multilingual, 141 MB)",
+				DisplayName: "Base (multilingual, ~141 MB) — recommended for non-English",
+			},
+			"ggml-small.bin": {
+				URL:         baseURL + "/ggml-small.bin",
+				SizeBytes:   488479232, // ~466 MB
+				Language:    "multilingual",
+				Tier:        "small",
+				DisplayName: "Small (multilingual, ~466 MB)",
+			},
+			"ggml-medium.bin": {
+				URL:         baseURL + "/ggml-medium.bin",
+				SizeBytes:   1533249024, // ~1.5 GB
+				Language:    "multilingual",
+				Tier:        "medium",
+				DisplayName: "Medium (multilingual, ~1.5 GB)",
 			},
 		},
 		Piper: map[string]PiperVoiceMeta{
@@ -107,7 +159,7 @@ func DefaultManifest() *Manifest {
 				SizeBytes:      63123456, // ~60 MB; pinned at IMPL time
 				Language:       "en",
 				Quality:        "medium",
-				DisplayName:    "US English (Lessac, medium quality)",
+				DisplayName:    "US English (Lessac, medium)",
 			},
 		},
 	}

@@ -9,6 +9,9 @@
  * CID:wizardcli-translate-test-006 -> TestStateFromWizard_PreservesHotkey
  * CID:wizardcli-translate-test-007 -> TestStateFromWizard_EnglishAutoPiper (rc1-hotpatch-19)
  * CID:wizardcli-translate-test-008 -> TestStateFromWizard_AutostartDefault (rc1-hotpatch-19)
+ * CID:wizardcli-translate-test-009 -> TestStateFromWizard_HonorsExplicitModel (rc1-hotpatch-24)
+ * CID:wizardcli-translate-test-010 -> TestStateFromWizard_EmptyModelFallsBack (rc1-hotpatch-24)
+ * CID:wizardcli-translate-test-011 -> TestStateFromWizard_NonEnglishExplicitMultilingual (rc1-hotpatch-24)
  */
 package wizardcli
 
@@ -19,8 +22,11 @@ import (
 	"voces/internal/wizard"
 )
 
-// TestStateFromWizard_EnglishRoutesToSmallEn: en → ggml-small.en.bin
-// (ADR-0004: smaller, faster model for English-only).
+// TestStateFromWizard_EnglishRoutesToSmallEn: en → ggml-small.en.bin.
+// rc1-hotpatch-24: now tests the empty-Model fallback path — the
+// wizard State has no explicit pick, so translate.go falls back to
+// wizard.DefaultModelForLanguage("en") = "ggml-small.en.bin". The
+// visible result is unchanged.
 func TestStateFromWizard_EnglishRoutesToSmallEn(t *testing.T) {
 	w := &wizard.State{Language: "en"}
 	got := StateFromWizard(w, "v0.1.0")
@@ -30,12 +36,79 @@ func TestStateFromWizard_EnglishRoutesToSmallEn(t *testing.T) {
 }
 
 // TestStateFromWizard_NonEnglishRoutesToBase: any non-en → ggml-base.bin
-// (multilingual, larger).
+// (multilingual, larger). rc1-hotpatch-24: now tests the empty-Model
+// fallback path for non-English.
 func TestStateFromWizard_NonEnglishRoutesToBase(t *testing.T) {
 	w := &wizard.State{Language: "de"}
 	got := StateFromWizard(w, "v0.1.0")
 	if got.WhisperModel != "ggml-base.bin" {
 		t.Errorf("non-English whisper model: got %q want %q", got.WhisperModel, "ggml-base.bin")
+	}
+}
+
+// TestStateFromWizard_HonorsExplicitModel (rc1-hotpatch-24): the
+// model picker step writes the user's pick into State.Model. That
+// pick wins over the language-implied default — that's the whole
+// point of adding the picker. This test pins the contract.
+func TestStateFromWizard_HonorsExplicitModel(t *testing.T) {
+	cases := []struct {
+		name string
+		lang string
+		pick string
+	}{
+		{"english-picks-base.en", "en", "ggml-base.en.bin"},
+		{"english-picks-tiny.en", "en", "ggml-tiny.en.bin"},
+		{"english-picks-medium.en", "en", "ggml-medium.en.bin"},
+		{"multilingual-picks-small", "de", "ggml-small.bin"},
+		{"multilingual-picks-medium", "fr", "ggml-medium.bin"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := &wizard.State{Language: tc.lang, Model: tc.pick}
+			got := StateFromWizard(w, "v0.1.0")
+			if got.WhisperModel != tc.pick {
+				t.Errorf("explicit model: got %q want %q", got.WhisperModel, tc.pick)
+			}
+		})
+	}
+}
+
+// TestStateFromWizard_EmptyModelFallsBack (rc1-hotpatch-24):
+// back-compat path. A wizard State with no Model field (e.g. a
+// hand-rolled struct that pre-dates the picker) still resolves
+// to a sensible default via DefaultModelForLanguage.
+func TestStateFromWizard_EmptyModelFallsBack(t *testing.T) {
+	cases := []struct {
+		lang string
+		want string
+	}{
+		{"en", "ggml-small.en.bin"},
+		{"de", "ggml-base.bin"},
+		{"fr", "ggml-base.bin"},
+		{"", "ggml-base.bin"}, // unknown lang falls through to multilingual default
+	}
+	for _, tc := range cases {
+		t.Run(tc.lang, func(t *testing.T) {
+			w := &wizard.State{Language: tc.lang, Model: ""}
+			got := StateFromWizard(w, "v0.1.0")
+			if got.WhisperModel != tc.want {
+				t.Errorf("empty-model fallback for %q: got %q want %q", tc.lang, got.WhisperModel, tc.want)
+			}
+		})
+	}
+}
+
+// TestStateFromWizard_NonEnglishExplicitMultilingual (rc1-hotpatch-24):
+// a non-English user can still pick an English-only model if they
+// want (e.g. the user knows their audio is English). The picker
+// doesn't enforce the filter on commit — that happens at the
+// wizard-UI layer. translate.go is pure plumbing: whatever the
+// State says, it carries through.
+func TestStateFromWizard_NonEnglishExplicitMultilingual(t *testing.T) {
+	w := &wizard.State{Language: "de", Model: "ggml-tiny.en.bin"}
+	got := StateFromWizard(w, "v0.1.0")
+	if got.WhisperModel != "ggml-tiny.en.bin" {
+		t.Errorf("explicit en model under de lang: got %q want %q", got.WhisperModel, "ggml-tiny.en.bin")
 	}
 }
 
