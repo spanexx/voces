@@ -3,9 +3,12 @@
 #
 # Usage:
 #   curl -fsSL https://github.com/spanexx/voces/releases/latest/download/install.sh | bash
+#   # or pin a specific version:
+#   VOCES_VERSION=v0.2.0-rc9 curl -fsSL ... | bash
 #
 # What it does:
-#   1. Detects the latest published release from GitHub.
+#   1. Finds the latest published release from GitHub (including
+#      prereleases — see the rc1-hotpatch-22 fix below).
 #   2. Downloads the linux-amd64 tarball into a temp dir.
 #   3. Extracts it into /opt/voces/.
 #   4. Runs install-deps.sh to install the system libraries.
@@ -40,21 +43,45 @@ echo "  Repo:   $REPO"
 echo "  Target: $INSTALL_DIR"
 echo ""
 
-API_URL="https://api.github.com/repos/${REPO}/releases/latest"
-LATEST_ASSET_URL="$(
-    curl -fsSL "$API_URL" \
-        | grep '"browser_download_url"' \
-        | grep 'linux-amd64\.tar\.gz' \
-        | head -n 1 \
-        | cut -d'"' -f4
-)"
+# Honour a pinned version when the caller exports VOCES_VERSION
+# (lets users install a specific tag like v0.2.0-rc8, or pin to
+# rc1 in CI). When unset, pick the highest semver tag from the
+# GitHub API list endpoint — which INCLUDES prereleases.
+#
+# rc1-hotpatch-22: the previous version used /releases/latest,
+# which GitHub defines to exclude prereleases. Every voces
+# release since rc1 has been published with --prerelease, so the
+# endpoint silently kept returning the rc1 tarball. Switching to
+# /releases?per_page=100 and picking the highest tag fixes the
+# "install runs cleanly but I stay on rc1 forever" loop that
+# burned us from rc2 onward.
+if [ -n "${VOCES_VERSION:-}" ]; then
+    LATEST_TAG="$VOCES_VERSION"
+else
+    API_URL="https://api.github.com/repos/${REPO}/releases?per_page=100"
+    LATEST_TAG="$(
+        curl -fsSL "$API_URL" \
+            | grep '"tag_name"' \
+            | sed 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/' \
+            | grep -E '^v[0-9]+' \
+            | sort -V \
+            | tail -n 1
+    )"
+fi
 
-if [ -z "${LATEST_ASSET_URL:-}" ]; then
-    echo "Error: could not find a linux-amd64.tar.gz asset on the latest release." >&2
-    echo "  Check: https://github.com/${REPO}/releases/latest" >&2
+if [ -z "${LATEST_TAG:-}" ]; then
+    echo "Error: could not find a voces release tag on GitHub." >&2
+    echo "  Check: https://github.com/${REPO}/releases" >&2
+    echo "  You can also pin a version: VOCES_VERSION=v0.2.0-rc8 curl ... | bash" >&2
     exit 1
 fi
 
+# Construct the tarball URL directly from the tag. Asset naming
+# convention is voces-${TAG}-linux-amd64.tar.gz (matches every
+# release from rc1 onward — verified for rc1..rc8).
+LATEST_ASSET_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/voces-${LATEST_TAG}-linux-amd64.tar.gz"
+
+echo "Latest release tag:   $LATEST_TAG"
 echo "Latest release asset: $LATEST_ASSET_URL"
 
 # --- 2. Download to a temp dir ----------------------------------------------
@@ -89,7 +116,7 @@ fi
 # --- Done -------------------------------------------------------------------
 cat <<EOF
 
-✅ Voces installed!
+✅ Voces ${LATEST_TAG} installed!
 
   Run it from anywhere:   voces
   Open the app menu:      search for "Voces"
