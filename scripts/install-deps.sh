@@ -15,6 +15,11 @@
 #   - Runs `apt-get update` first so the t64 detection below is
 #     reliable on a fresh box (without this, resolve_pkg returns the
 #     base name when the cache is empty and apt fails on libasound2).
+#   - Waits for any background refresher (Linux Mint's mint-refresh-ca,
+#     Ubuntu's unattended-upgrades, Pop!_OS's pop-system-updater) to
+#     release /var/lib/apt/lists/lock before calling apt-get
+#     (rc1-hotpatch-25 — failed on Mint 22.3 with process 1277933
+#     holding the lock for ~10s on every install attempt).
 #   - Skips packages that dpkg reports as already installed.
 #   - Resolves <name> → <name>t64 on Ubuntu 24.04+ / Debian 13+ /
 #     Linux Mint 22+ where the original is a virtual package.
@@ -57,7 +62,74 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
     echo "🔒 Not running as root; will use sudo for package install."
 fi
 
-# 3. Refresh the apt cache. On a fresh Linux box (or one where the
+# 3. Wait for any background process to release the apt lock.
+#    Linux Mint's mint-refresh-ca (process 1277933 in the rc25
+#    bug report), Ubuntu's unattended-upgrades, and Pop!_OS's
+#    pop-system-updater all hold /var/lib/apt/lists/lock for
+#    several seconds at a time. Calling apt-get update while
+#    the lock is held fails immediately with E: Could not get
+#    lock, and the user has to re-run the installer manually.
+#    wait_for_apt_lock polls the lock file with fuser; when the
+#    refresher releases the lock, the helper returns and we
+#    proceed. 120s default timeout is plenty for any of the
+#    refreshers above (they typically hold the lock for 5-15s).
+#    The actual apt-get call is also wrapped so a refresher
+#    that starts AFTER our wait has a second chance.
+wait_for_apt_lock() {
+    local label="${1:-apt}"
+    local timeout="${APT_LOCK_TIMEOUT:-120}"
+    local elapsed=0
+    # Three locks cover both apt-get update (lists/lock) and
+    # apt-get install (dpkg/lock + dpkg/lock-frontend). Any
+    # held lock means we wait; the polling is per-call, not
+    # per-lock, so the timeout is the worst-case wait time.
+    # The lock paths default to the apt locations; tests
+    # override via the second argument.
+    local lock_files=("${@:2}")
+    if [[ ${#lock_files[@]} -eq 0 ]]; then
+        lock_files=(
+            /var/lib/apt/lists/lock
+            /var/lib/dpkg/lock
+            /var/lib/dpkg/lock-frontend
+        )
+    fi
+    while true; do
+        local held=()
+        for lock in "${lock_files[@]}"; do
+            # SUDO=() in production means we're root; SUDO=("sudo")
+            # means the script prepends sudo to privileged calls. fuser
+            # can only inspect another user's processes as root or via
+            # sudo. The test in scripts/install-deps-test.sh stubs
+            # SUDO=() to disable the wrapping and exercise the helper
+            # without root.
+            if [[ -e "$lock" ]] && "${SUDO[@]}" fuser "$lock" >/dev/null 2>&1; then
+                held+=("$lock")
+            fi
+        done
+        if [[ ${#held[@]} -eq 0 ]]; then
+            return 0
+        fi
+        if [[ $elapsed -ge $timeout ]]; then
+            echo "" >&2
+            echo "❌ Timed out waiting ${timeout}s for the apt lock to be released" >&2
+            echo "   (needed by: $label)." >&2
+            echo "   Held by: ${held[*]}" >&2
+            echo "" >&2
+            echo "   Work-around: ${SUDO[*]} fuser -k ${held[*]}" >&2
+            echo "   (kills the refresher; safe to run while the GUI is up)" >&2
+            echo "   then re-run the installer." >&2
+            return 1
+        fi
+        if [[ $elapsed -eq 0 ]]; then
+            echo "⏳ Another process holds the apt lock: ${held[*]}" >&2
+            echo "   (needed by: $label). Waiting up to ${timeout}s for it to release..." >&2
+        fi
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+}
+
+# 4. Refresh the apt cache. On a fresh Linux box (or one where the
 #    user hasn't run apt in a while) the cache is empty, so
 #    `apt-cache show <name>` returns nothing and the resolve_pkg
 #    helper below falls back to the base name (libasound2 etc.)
@@ -65,14 +137,28 @@ fi
 #    update once, up-front, makes the t64 detection reliable and
 #    avoids the user having to manually apt-get update + re-run
 #    this script after the first failure.
-if ! "${SUDO[@]}" apt-get update -y; then
+if ! wait_for_apt_lock "apt-get update"; then
     echo "" >&2
-    echo "❌ apt-get update failed. Check your network connection and" >&2
-    echo "   the contents of /etc/apt/sources.list." >&2
+    echo "❌ apt-get update skipped because the lock is still held." >&2
+    echo "   See the work-around above." >&2
     exit 4
 fi
+if ! "${SUDO[@]}" apt-get update -y; then
+    # The refresher may have grabbed the lock between our wait
+    # and the apt-get call. One more retry covers that.
+    if wait_for_apt_lock "apt-get update (retry)"; then
+        if ! "${SUDO[@]}" apt-get update -y; then
+            echo "" >&2
+            echo "❌ apt-get update failed. Check your network connection and" >&2
+            echo "   the contents of /etc/apt/sources.list." >&2
+            exit 4
+        fi
+    else
+        exit 4
+    fi
+fi
 
-# 4. Resolve package names. Some distros (Ubuntu 24.04+, Debian 13+,
+# 5. Resolve package names. Some distros (Ubuntu 24.04+, Debian 13+,
 #    Linux Mint 22+) moved libraries from <name> to <name>t64 to
 #    signal the time_t=64-bit ABI transition. On those distros the
 #    original <name> is either a transitional alias or a pure virtual
@@ -141,7 +227,7 @@ resolve_pkg() {
     echo "$base"
 }
 
-# 5. Runtime packages. Keep the list in lockstep with the comment at top.
+# 6. Runtime packages. Keep the list in lockstep with the comment at top.
 PKGS=(
     "$(resolve_pkg libgtk-3-0)"
     libayatana-appindicator3-1
@@ -155,7 +241,7 @@ PKGS=(
     espeak-ng
 )
 
-# 5. Filter out already-installed packages. `dpkg -s` exits 0 if installed.
+# 7. Filter out already-installed packages. `dpkg -s` exits 0 if installed.
 TO_INSTALL=()
 for pkg in "${PKGS[@]}"; do
     if dpkg -s "$pkg" >/dev/null 2>&1; then
@@ -175,13 +261,28 @@ echo ""
 echo "📦 Installing ${#TO_INSTALL[@]} package(s): ${TO_INSTALL[*]}"
 echo ""
 
-# 7. Run apt. -y to assume yes; --no-install-recommends to keep it minimal.
-if ! "${SUDO[@]}" apt-get install -y --no-install-recommends "${TO_INSTALL[@]}"; then
+# 8. Run apt. -y to assume yes; --no-install-recommends to keep it minimal.
+#    Same lock-collision concern as apt-get update: a background
+#    refresher can grab /var/lib/dpkg/lock the moment our update
+#    finishes. wait_for_apt_lock handles the polling; we then
+#    re-poll on the rare failure path with one retry.
+if ! wait_for_apt_lock "apt-get install"; then
     echo "" >&2
-    echo "❌ apt-get install failed. Try:" >&2
-    echo "   ${SUDO[*]} apt-get update" >&2
-    echo "   then re-run this script." >&2
+    echo "❌ apt-get install skipped because the lock is still held." >&2
     exit 3
+fi
+if ! "${SUDO[@]}" apt-get install -y --no-install-recommends "${TO_INSTALL[@]}"; then
+    if wait_for_apt_lock "apt-get install (retry)"; then
+        if ! "${SUDO[@]}" apt-get install -y --no-install-recommends "${TO_INSTALL[@]}"; then
+            echo "" >&2
+            echo "❌ apt-get install failed. Try:" >&2
+            echo "   ${SUDO[*]} apt-get update" >&2
+            echo "   then re-run this script." >&2
+            exit 3
+        fi
+    else
+        exit 3
+    fi
 fi
 
 echo ""
