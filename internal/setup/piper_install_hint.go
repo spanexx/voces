@@ -21,21 +21,24 @@ package setup
 import "runtime"
 
 // PiperInstallHint is the human-readable text the wizard shows
-// when FindPiperBinary returns empty. Kept short and concrete
-// — three commands the user can paste in a terminal, plus the
-// GitHub releases link for the source build.
+// when FindPiperBinary returns empty. With rc1-hotpatch-32 the
+// install script downloads piper automatically to
+// /opt/voces/engines/piper, so this hint is now a fallback for
+// users who (a) skipped TTS in the install or (b) are on an
+// arch the install script doesn't support. The hint stays
+// loud about the libratbag naming collision so the user
+// doesn't fall into the rc30 trap (apt install piper → mouse
+// GUI → "Unknown option -m" at runtime).
 //
-// rc1-hotpatch-31: the Debian/Ubuntu "apt install piper" line
-// is intentionally a footgun now — that package is the
-// libratbag gaming-mouse GUI, not the rhasspy/piper TTS. The
-// hint is explicit about that so a user who lands on this
-// screen and runs the first command doesn't end up with the
-// wrong binary (which would pass the rc30 "is piper
-// installed?" check but fail at runtime with "Unknown option
-// -m" the first time they press Ctrl+U).
-const PiperInstallHint = `Piper is a fast, local neural text-to-speech engine. Voces uses it to read transcriptions aloud (for example, when you press Ctrl+U to read the clipboard).
+// Keep the hint text in sync with the install.sh install_piper
+// function: if install.sh gains a new arch (e.g. riscv64), the
+// hint's "the installer downloaded it..." line still applies,
+// but a user who needs to install manually needs the arch list
+// to match what install.sh would have tried.
+const PiperInstallHint = `The piper text-to-speech engine isn't installed on this system. The voces installer usually downloads it automatically; if you're seeing this message, that step was skipped or failed.
 
-Piper is not installed on this system. Pick one of these options to enable text-to-speech:
+  • Re-run the installer: bash <(curl -fsSL https://github.com/spanexx/voces/releases/latest/download/install.sh)
+    The piper download is idempotent and won't re-download if /opt/voces/engines/piper already exists.
 
   • Debian / Ubuntu / Linux Mint — IMPORTANT:
       Do NOT run "sudo apt install piper" — that's a Python
@@ -45,7 +48,7 @@ Piper is not installed on this system. Pick one of these options to enable text-
       "Unknown option -m".
 
       Install the rhasspy/piper binary from GitHub releases
-      instead:
+      manually:
           sudo apt install libonnxruntime1 libespeak-ng1
           curl -fsSL -o /tmp/piper.tar.gz \
             https://github.com/rhasspy/piper/releases/latest/download/piper_linux_x86_64.tar.gz

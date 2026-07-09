@@ -75,6 +75,11 @@ precommit:
 	@bash scripts/install-deps-test.sh || exit 1
 	@echo ""
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "11/11: Testing install.sh install_piper (rc32 — download-at-install-time)..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@bash scripts/install-piper-test.sh || exit 1
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "✅ All pre-commit checks passed!"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 

@@ -227,6 +227,117 @@ $SUDO tar xzf "$TMPDIR/voces.tar.gz" -C "$INSTALL_DIR" --strip-components=1
 echo "Installing system dependencies..."
 $SUDO "$INSTALL_DIR/install-deps.sh"
 
+# --- 4b. Install piper TTS engine (rc1-hotpatch-32) ------------------------
+# Voces uses piper (https://github.com/rhasspy/piper) to read transcriptions
+# aloud. The piper binary is distributed as a prebuilt tarball on GitHub
+# releases, ~5 MB. We download it to /opt/voces/engines/piper (the path
+# setup.FindPiperBinary checks first), chmod it +x, and that's it — no
+# apt install, no build step. libonnxruntime1 (the only system dep) is
+# already in install-deps.sh above.
+#
+# If a piper binary is already at $INSTALL_DIR/engines/piper, we skip
+# (this lets a partial download from a previous failed run be retried
+# without re-downloading, and lets the rc32+ release tarball ship a
+# pre-downloaded binary that we just chmod + extract).
+#
+# Failure mode: any error here is logged but does NOT abort the install.
+# The voces tarball itself, the whisper.cpp binary, and the voices
+# downloader are independent of piper; a user who doesn't use TTS
+# (Ctrl+U) is unaffected. A user who does use TTS will see the rc31
+# install hint in the wizard and can install manually.
+PIPER_REPO="rhasspy/piper"
+PIPER_DEST_DIR="$INSTALL_DIR/engines"
+PIPER_DEST="$PIPER_DEST_DIR/piper"
+
+# piper_arch_for_machine maps `uname -m` output to the asset suffix
+# upstream ships in their release tarball filenames. Empty string when
+# the arch is not supported (the script skips the download in that case).
+piper_arch_for_machine() {
+    case "$(uname -m)" in
+        x86_64)         echo "x86_64" ;;
+        aarch64|arm64)  echo "aarch64" ;;
+        armv7l|armhf)   echo "armv7l" ;;
+        *)              echo "" ;;
+    esac
+}
+
+install_piper() {
+    if [ -x "$PIPER_DEST" ]; then
+        echo "  ✓ piper already at $PIPER_DEST"
+        return 0
+    fi
+
+    local arch
+    arch="$(piper_arch_for_machine)"
+    if [ -z "$arch" ]; then
+        echo "  ⚠️  piper: no prebuilt binary for $(uname -m) — skipping." >&2
+        echo "     Install piper manually: see the wizard's piper-status step." >&2
+        return 0
+    fi
+
+    local piper_tmp
+    piper_tmp="$(mktemp -d)"
+    # Don't replace the script's EXIT trap here — install.sh
+    # already has one for $TMPDIR. Just clean up piper_tmp
+    # explicitly on failure paths and let the script-level
+    # EXIT trap handle the success path. This is also
+    # install-piper-test.sh friendly: tests run install_piper
+    # many times and the cumulative trap state would get
+    # unwieldy otherwise.
+    local cleanup_piper_tmp="rm -rf '$piper_tmp'"
+
+    echo "  Downloading piper (arch=$arch) from GitHub releases..."
+    # Query the API for the latest release tag. Fall back to a known-good
+    # tag if the API is rate-limited (60 req/h unauthenticated) or the
+    # network is flaky; the user can always re-run the installer.
+    local latest_tag
+    latest_tag="$(
+        curl -fsSL "https://api.github.com/repos/${PIPER_REPO}/releases/latest" 2>/dev/null \
+            | grep '"tag_name"' \
+            | sed 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/' \
+            | head -n 1
+    )"
+    if [ -z "$latest_tag" ]; then
+        eval "$cleanup_piper_tmp"
+        echo "  ⚠️  piper: could not query GitHub API for latest release." >&2
+        echo "     The TTS feature won't work until piper is installed manually." >&2
+        return 0
+    fi
+
+    local asset="piper_linux_${arch}.tar.gz"
+    local url="https://github.com/${PIPER_REPO}/releases/download/${latest_tag}/${asset}"
+    if ! curl -fsSL -o "$piper_tmp/$asset" "$url"; then
+        eval "$cleanup_piper_tmp"
+        echo "  ⚠️  piper: download failed (tried $url)." >&2
+        echo "     The TTS feature won't work until piper is installed manually." >&2
+        return 0
+    fi
+
+    $SUDO mkdir -p "$PIPER_DEST_DIR"
+    # The asset contains a `piper` binary at the top level (verified
+    # against piper's 1.2.0 release). --no-same-owner because we may be
+    # running as a non-root user invoking sudo tar.
+    if ! $SUDO tar -xzf "$piper_tmp/$asset" -C "$piper_tmp" piper; then
+        eval "$cleanup_piper_tmp"
+        echo "  ⚠️  piper: extract failed — the asset may have changed layout." >&2
+        return 0
+    fi
+    $SUDO install -m 0755 "$piper_tmp/piper" "$PIPER_DEST"
+    # Smoke test: --version should print something containing "piper".
+    # If it doesn't, the binary is broken (or the asset has changed
+    # shape) and we don't want to leave a non-working binary in place.
+    if ! "$PIPER_DEST" --version 2>/dev/null | grep -qi "piper"; then
+        eval "$cleanup_piper_tmp"
+        echo "  ⚠️  piper: downloaded binary did not respond to --version." >&2
+        $SUDO rm -f "$PIPER_DEST"
+        return 0
+    fi
+    eval "$cleanup_piper_tmp"
+    echo "  ✓ piper installed at $PIPER_DEST"
+}
+
+install_piper
+
 # --- 5. Symlink binaries ----------------------------------------------------
 echo "Linking binaries to /usr/local/bin..."
 $SUDO ln -sf "$INSTALL_DIR/voces" /usr/local/bin/voces
@@ -253,6 +364,12 @@ cat <<EOF
     - download the speech recognition "brain" (model)
     - pick a hotkey
     - (optionally) download a TTS voice
+
+  Read-clipboard speech (Ctrl+U) needs the piper TTS engine. The
+  installer downloaded it to /opt/voces/engines/piper if your
+  machine is x86_64 / aarch64 / armv7l. If the download was
+  skipped or failed, the wizard's piper-status step will guide
+  you to the manual install.
 
   See https://github.com/${REPO} for docs and troubleshooting.
 EOF

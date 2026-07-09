@@ -45,9 +45,9 @@ case "${ID:-unknown}" in
         echo "   list below to your distro's package manager." >&2
         echo "" >&2
         echo "   Required runtime packages (Debian names):" >&2
-        echo "     libgtk-3-0 libayatana-appindicator3-1 xclip xdotool xdg-utils" >&2
-        echo "     libx11-6 libxtst6 libasound2 libpulse0 espeak-ng" >&2
-        exit 2
+    echo "     libgtk-3-0 libayatana-appindicator3-1 xclip xdotool xdg-utils" >&2
+    echo "     libx11-6 libxtst6 libasound2 libpulse0 espeak-ng libonnxruntime1" >&2
+    exit 2
         ;;
 esac
 
@@ -228,6 +228,13 @@ resolve_pkg() {
 }
 
 # 6. Runtime packages. Keep the list in lockstep with the comment at top.
+#    rc1-hotpatch-32: libonnxruntime1 added — piper TTS loads ONNX
+#    models and needs the runtime shared lib at runtime. The piper
+#    binary (downloaded separately by install.sh) is linked against
+#    libonnxruntime.so.1, so without this package piper fails with
+#    "error while loading shared libraries: libonnxruntime.so.1".
+#    libonnxruntime1 is in Debian's main repo since Bullseye, so no
+#    extra apt source is needed.
 PKGS=(
     "$(resolve_pkg libgtk-3-0)"
     libayatana-appindicator3-1
@@ -239,6 +246,7 @@ PKGS=(
     "$(resolve_pkg libasound2)"
     libpulse0
     espeak-ng
+    libonnxruntime1
 )
 
 # 7. Filter out already-installed packages. `dpkg -s` exits 0 if installed.
