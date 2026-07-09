@@ -27,16 +27,31 @@ import (
 // Used by: buildConfigDoc.
 
 // defaultConfigFor populates the wizard-derived values: model paths
-// from state, engine binary paths from paths.EnginesDir(), and the
-// hotkey from state.HotkeyPreset+state.CustomHotkey.
+// from state, engine binary paths from paths.EnginesDir() and
+// ResolvePiperBinaryPath (rc30), and the hotkey from
+// state.HotkeyPreset+state.CustomHotkey.
+//
+// Piper binary path (rc30): when piper is installed system-wide
+// (e.g. /usr/bin/piper from apt), ResolvePiperBinaryPath detects
+// it and writes that path to the config. Otherwise the bundled
+// <engines>/piper is used. The user's actual config will end
+// up with the system path so Piper.Validate()'s os.Stat passes
+// and the rc1-hotpatch-27 "TTS Unavailable" notification stops
+// firing.
+//
+// Piper model path (rc30): handles both manifest keys
+// (en_US-lessac-medium) and custom URL sentinels
+// (custom:https://x/v.onnx|). The previous code used
+// paths.PiperVoicePath(s.PiperVoice) which appended ".onnx"
+// to the sentinel verbatim and produced an invalid path
+// containing ":" and "|" — Piper.Validate() then failed
+// the model stat and the hotkey handler showed
+// "TTS Unavailable" despite the model having downloaded
+// successfully.
 func defaultConfigFor(s *State) generatedConfig {
 	engines, _ := paths.EnginesDir()
 	whisperModel, _ := paths.WhisperModelPath(s.WhisperModel)
-	piperModel, _ := paths.PiperVoicePath(s.PiperVoice)
-	piperVoiceCfg := ""
-	if s.PiperVoice != "" {
-		piperVoiceCfg = piperModel + ".json"
-	}
+	piperModel, piperVoiceCfg := piperPathsForState(s)
 	return generatedConfig{
 		Transcription: transcriptionBlock{
 			DefaultEngine: "whisper_cpp",
@@ -55,7 +70,7 @@ func defaultConfigFor(s *State) generatedConfig {
 		TTS: ttsBlock{
 			DefaultEngine: "piper",
 			Piper: piperBlock{
-				BinaryPath:   filepath.Join(engines, "piper"),
+				BinaryPath:   ResolvePiperBinaryPath(engines),
 				Model:        piperModel,
 				VoiceConfig:  piperVoiceCfg,
 				OutputDevice: "",

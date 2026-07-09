@@ -31,20 +31,36 @@ import (
 // Used by: buildConfigDoc.
 
 // preserveBinaryPath: the "user wins" rule. Pre-existing non-empty
-// binary_path values survive Apply; the wizard's defaults only fill
-// in empty fields.
+// binary_path values survive Apply, but only when the value points
+// at a real, executable file (rc30). The pre-rc30 rule
+// "preserve whenever the value is non-empty" trapped users with a
+// stale /opt/voces/engines/piper that doesn't exist on their
+// system; preserve would keep the dead value across re-runs of
+// the wizard, so Piper.Validate()'s os.Stat kept failing and the
+// rc1-hotpatch-27 "TTS Unavailable" notification kept firing.
+//
+// The validation is a real os.Stat — no fakes, no shims (per the
+// no-fakes gate in scripts/check-no-test-mocks.sh). When the
+// existing value is missing, empty, or points to a non-existent
+// or non-executable file, preserveBinaryPath leaves cfg unchanged
+// so defaultConfigFor's ResolvePiperBinaryPath can pick the
+// system piper (e.g. /usr/bin/piper) on the next pass.
 func preserveBinaryPath(cfg *generatedConfig, existing map[string]any) {
 	if t, ok := existing["transcription"].(map[string]any); ok {
 		if w, ok := t["whisper_cpp"].(map[string]any); ok {
 			if v, ok := w["binary_path"].(string); ok && v != "" {
-				cfg.Transcription.WhisperCPP.BinaryPath = v
+				if info, err := os.Stat(v); err == nil && !info.IsDir() && info.Mode()&0111 != 0 {
+					cfg.Transcription.WhisperCPP.BinaryPath = v
+				}
 			}
 		}
 	}
 	if t, ok := existing["tts"].(map[string]any); ok {
 		if p, ok := t["piper"].(map[string]any); ok {
 			if v, ok := p["binary_path"].(string); ok && v != "" {
-				cfg.TTS.Piper.BinaryPath = v
+				if info, err := os.Stat(v); err == nil && !info.IsDir() && info.Mode()&0111 != 0 {
+					cfg.TTS.Piper.BinaryPath = v
+				}
 			}
 		}
 	}

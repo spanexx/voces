@@ -181,23 +181,42 @@ func TestApply_WritesStateAndConfig(t *testing.T) {
 // has a config.yaml with custom binary paths (from a pre-wizard install),
 // Apply does not stomp on those paths. This is the IMPL §3 Phase 5
 // "preserves user paths" regression contract.
+//
+// rc30: preserveBinaryPath now also validates that the pre-existing
+// value points at a real, executable file (rc30's TTS Unavailable
+// fix). To keep this end-to-end test honest, we drop real executable
+// files in t.TempDir() and point the pre-existing config at them —
+// a real file is the only honest way to make the test pass under
+// the new validation rule.
 func TestApply_PreservesExistingBinaryPaths(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	cfgDir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgDir)
 
-	// Pre-write a config.yaml with custom binary paths.
+	// Real, executable binaries in t.TempDir() so the rc30
+	// preserveBinaryPath validation passes (os.Stat + exec bit).
+	binDir := t.TempDir()
+	whisperBin := filepath.Join(binDir, "whisper-cli")
+	piperBin := filepath.Join(binDir, "piper")
+	if err := os.WriteFile(whisperBin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(piperBin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pre-write a config.yaml with the user's chosen binary paths.
 	appCfgDir := filepath.Join(cfgDir, "voces")
 	if err := os.MkdirAll(appCfgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	preExisting := `transcription:
   whisper_cpp:
-    binary_path: /opt/custom/whisper-cli
+    binary_path: ` + whisperBin + `
     model: ""
 tts:
   piper:
-    binary_path: /opt/custom/piper
+    binary_path: ` + piperBin + `
     model: ""
     voice_config: ""
 `
@@ -221,10 +240,10 @@ tts:
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !contains(data, []byte("/opt/custom/whisper-cli")) {
+	if !contains(data, []byte(whisperBin)) {
 		t.Errorf("user whisper binary path not preserved:\n%s", data)
 	}
-	if !contains(data, []byte("/opt/custom/piper")) {
+	if !contains(data, []byte(piperBin)) {
 		t.Errorf("user piper binary path not preserved:\n%s", data)
 	}
 	// And the model path the wizard chose must now be filled in.

@@ -24,6 +24,7 @@ package setup
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 )
 
@@ -71,6 +72,32 @@ var piperCandidatePaths = []string{
 	"/opt/voces/engines/piper",
 	"/usr/local/bin/piper",
 	"/usr/bin/piper",
+}
+
+// CID:setup-piper-003 - ResolvePiperBinaryPath
+// Purpose: pick the piper binary path the wizard writes into
+// the generated config.yaml. Two-tier strategy:
+//
+//  1. FindPiperBinary() — the same detection the wizard's
+//     piper-status step uses, so the config matches what
+//     the user just saw. Catches the "I installed piper
+//     system-wide via apt/dnf/pacman and it's on $PATH"
+//     case (rc30) where the bundled <engines>/piper path
+//     doesn't exist.
+//  2. <engines>/piper — the bundled default. Kept as the
+//     fallback so the release tarball still works out of
+//     the box on a system where piper is only present in
+//     the voces engines dir (Phase 8.1: bundled piper).
+//
+// No mocking: a real file is the source of truth (per the
+// no-fakes gate). Used by setup.defaultConfigFor; not
+// directly exported to other packages — only the wizard
+// commit step needs it.
+func ResolvePiperBinaryPath(bundledEnginesDir string) string {
+	if p := FindPiperBinary(); p != "" {
+		return p
+	}
+	return filepath.Join(bundledEnginesDir, "piper")
 }
 
 // isExecutable reports whether path exists and is a regular
