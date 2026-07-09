@@ -108,18 +108,34 @@ func startCommit(
 // Purpose: assemble the "Downloading..." view: a label + a
 // determinate-progress bar. Kept separate so the progress-step
 // state machine (startCommit) is readable.
+//
+// rc1-hotpatch-26: applied the .voces-download-label and
+// .voces-progress CSS classes. Before this, the default
+// GtkProgressBar was rendered with theme text color on a
+// theme background, which on a few themes produced an
+// invisible trough and an indeterminate black blob (the
+// user's "white window with a black box" screenshot). The
+// CSS in window_css.go paints a light-grey trough + Voces
+// blue fill on the progress bar so the user can see the
+// download filling up on any theme.
 func buildDownloadingView() (*gtk.Box, *gtk.ProgressBar, *gtk.Label, error) {
 	label, err := gtk.LabelNew("Downloading model...")
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("wizard: download label: %w", err)
 	}
 	label.SetHAlign(gtk.ALIGN_START)
+	if lStyle, err := label.GetStyleContext(); err == nil {
+		lStyle.AddClass("voces-download-label")
+	}
 	bar, err := gtk.ProgressBarNew()
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("wizard: progress bar: %w", err)
 	}
 	bar.SetFraction(0)
 	bar.SetShowText(false)
+	if bStyle, err := bar.GetStyleContext(); err == nil {
+		bStyle.AddClass("voces-progress")
+	}
 	box, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 8)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("wizard: progress box: %w", err)

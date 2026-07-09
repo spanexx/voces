@@ -5,9 +5,11 @@
  * - TestParseArgs_SetupPositional
  * - TestParseArgs_WizardOnlyFlag
  * - TestParseArgs_InvalidFlag
+ * - TestStripV: rc1-hotpatch-26 version-string normaliser
  *
  * CID Index:
  * CID:main-args-test-001 -> TestParseArgs_*
+ * CID:main-args-test-002 -> TestStripV
  */
 package main
 
@@ -93,5 +95,46 @@ func TestParseArgs_InvalidFlag(t *testing.T) {
 	_, err := parseArgs([]string{"--this-flag-does-not-exist"})
 	if err == nil {
 		t.Errorf("parseArgs(--bogus) returned nil error, want non-nil")
+	}
+}
+
+// CID:main-args-test-002 - TestStripV
+// Purpose: rc1-hotpatch-26. The ldflags injection in
+// build-release.sh produces "v0.2.0-rc11" (or "v0.2.0" for
+// stable). The wizard's header template adds the "v" itself, so
+// we strip it once before seeding AppVersion. The dev default
+// "dev" must pass through unchanged so a `go run` build still
+// renders "vdev · press-and-hold to talk" (the historical
+// dev-build UX).
+func TestStripV(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		// ldflags-injected release tag.
+		{"v0.2.0-rc11", "0.2.0-rc11"},
+		{"v0.2.0", "0.2.0"},
+		// Dev default — no leading "v", must round-trip.
+		{"dev", "dev"},
+		// No leading "v" but starts with a digit — pass-through.
+		{"0.2.0-rc11", "0.2.0-rc11"},
+		// A bare "v" is left alone (no digit follows).
+		{"v", "v"},
+		// Empty string — pass-through (the header would
+		// render "v · press-and-hold" but the AppVersion
+		// non-empty test in wizard_test.go catches it).
+		{"", ""},
+		// "vv" double-v is not a real format; the
+		// strip-on-digit rule keeps it intact (the
+		// second "v" is not a digit so the leading "v"
+		// is left in place). This is the "defensive
+		// passthrough" case — a future build script
+		// that misbehaves this way still produces
+		// "v0.2.0" after the strip, not "0.2.0".
+		{"vv0.2.0", "vv0.2.0"},
+	}
+	for _, c := range cases {
+		if got := stripV(c.in); got != c.want {
+			t.Errorf("stripV(%q) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }

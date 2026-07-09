@@ -35,6 +35,27 @@ import (
 //   - .voces-step-hint         — 12px muted hint text
 //   - .voces-accent            — the thin colored strip below the
 //                                header
+//   - .voces-download-label    — the "Downloading model..." text
+//                                above the progress bar
+//   - .voces-progress          — the determinate progress bar
+//                                (rc1-hotpatch-26)
+//
+// rc1-hotpatch-26: dropped the hardcoded `color: #1d2940` on
+// .voces-step-title and `color: #586581` on .voces-step-hint.
+// The fixed dark blue did not respect the system theme; on a
+// dark GTK theme the body background is dark and the dark-blue
+// title was unreadable. Without the explicit color, GTK falls
+// back to the theme's default text color, which is dark on
+// light themes and light on dark themes. The header gradient
+// stays dark — it is a brand element, and a dark bar is
+// legible against both light and dark window backgrounds.
+//
+// Also added the .voces-download-label and .voces-progress
+// classes so the commit progress view stays readable on dark
+// themes: a default GtkLabel/GtkProgressBar can render with
+// theme_text_color = theme_bg_color (invisible) on misconfigured
+// themes, and rc1-hotpatch-26's "white window with a black box"
+// was the default GtkProgressBar at ~0% on a white background.
 //
 // Kept as a single CSS blob (rather than split across files)
 // because the wizard window is one screen; splitting would
@@ -82,18 +103,57 @@ const vocesCSS = `
     background-image: linear-gradient(to bottom, #4b8ff6, #316bef);
 }
 
-/* Per-step section title (rendered in newStepContent) */
+/* Per-step section title (rendered in newStepContent).
+ * No explicit color — uses the theme's default text color so the
+ * title is readable on both light and dark system themes. The
+ * pre-rc1-hotpatch-26 hardcoded #1d2940 made the title invisible
+ * on dark themes (and very low contrast on some light themes).
+ */
 .voces-step-title {
-    color: #1d2940;
     font: 16px sans-serif;
     font-weight: bold;
 }
 
-/* Hint text under a section title */
+/* Hint text under a section title.
+ * No explicit color — same theme-aware rationale as .voces-step-title.
+ */
 .voces-step-hint {
-    color: #586581;
     font: 12px sans-serif;
     margin-top: 4px;
+    opacity: 0.75;
+}
+
+/* Downloading progress view (rc1-hotpatch-26).
+ * - label uses theme default text color (no override) so it
+ *   is visible on both light and dark themes.
+ * - progress bar is styled explicitly so the trough is
+ *   visible on any background: light grey trough + Voces
+ *   blue fill. Without this, a default GtkProgressBar on a
+ *   light theme renders the trough as white-on-white, which
+ *   is the "white window with a black box" the user saw
+ *   in the rc1-hotpatch-26 testing.
+ */
+.voces-download-label {
+    font: 12px sans-serif;
+    margin-bottom: 6px;
+}
+.voces-progress {
+    /* Trough = light grey on both light + dark themes. The
+     * value (filled portion) is the Voces blue so the user
+     * can read the progress at a glance.
+     */
+    color: #3b82f6;
+    background-color: #dde3ec;
+    border-radius: 3px;
+    min-height: 14px;
+}
+.voces-progress progress {
+    background-color: #3b82f6;
+    border-radius: 3px;
+}
+.voces-progress trough {
+    background-color: #dde3ec;
+    border-radius: 3px;
 }
 `
 

@@ -21,6 +21,19 @@ import (
 // Version is injected during the build process
 var Version = "dev"
 
+// stripV removes a single leading "v" from a version string.
+// The ldflags injection in scripts/build-release.sh produces
+// "v0.2.0-rc11"; the wizard's header template adds the "v"
+// itself, so we pass "0.2.0-rc11" to AppVersion (rc26).
+// Pass-through for "dev" / "0.2.0" so the default dev build
+// still renders correctly.
+func stripV(v string) string {
+	if len(v) > 1 && v[0] == 'v' && v[1] >= '0' && v[1] <= '9' {
+		return v[1:]
+	}
+	return v
+}
+
 // manifestPath is the on-disk path to the bundled engine manifest.
 // Lives next to the binary at <exec-dir>/engines/models.json in the
 // standard layout, but can be overridden via $VOCES_MANIFEST_PATH for
@@ -116,6 +129,14 @@ func main() {
 		fmt.Printf("Voces version %s\n", Version)
 		os.Exit(0)
 	}
+
+	// rc1-hotpatch-26: seed the wizard's AppVersion with the
+	// build's Version (stripped of the leading "v" so the
+	// header template "v%s · press-and-hold to talk" doesn't
+	// render "vv0.2.0-rc11"). Seeded once at startup, before
+	// the wizard is opened from any entry point
+	// (--setup, first-run, tray's "Run setup again...").
+	wizard.AppVersion = stripV(Version)
 
 	if configDir, err := os.UserConfigDir(); err == nil {
 		logDir := filepath.Join(configDir, "voces", "logs")

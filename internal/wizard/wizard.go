@@ -29,7 +29,18 @@ type CommitFunc func(ctx context.Context, state *State, progress download.Progre
 // CID:wizard-001 - AppVersion
 // Purpose: rendered in the welcome footer. A future phase will wire
 // this to a ldflags -X override at build time.
-const AppVersion = "0.1.0"
+//
+// rc1-hotpatch-26: changed from `const` to `var` and seeded with
+// "dev" so the cmd entrypoint can inject the build's Version at
+// process start (cmd/voces/main.go calls
+// `wizard.AppVersion = stripV(Version)` before RunFull). The
+// "0.1.0" hardcode was the rc1-hotpatch-14 initial value; with
+// the 6-step wizard + model picker (rc24) the hardcoded value
+// was visibly stale, so callers that want the build's real
+// version (e.g. v0.2.0-rc11) set it explicitly. The default
+// "dev" matches the ldflags default in main.go and keeps tests
+// independent of any build flag.
+var AppVersion = "dev"
 
 // gtkInitOnce guards gtk.Init so we never call it twice (gotk3
 // aborts on the second call).

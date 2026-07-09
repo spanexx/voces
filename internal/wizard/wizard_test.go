@@ -2,6 +2,7 @@ package wizard
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/gotk3/gotk3/gtk"
@@ -109,9 +110,19 @@ func TestWizard_EnsureInit_Idempotent(t *testing.T) {
 // CID:wizard-test-003 - TestWizard_AppVersion_IsNonEmpty
 // Purpose: the footer in the welcome step shows the app version.
 // A missing version would print "v", which is a regression.
+//
+// rc1-hotpatch-26: the default was "0.1.0" (a stale hardcode
+// from rc14). It is now "dev" by default and seeded by main.go
+// from the build-time Version. We still assert non-empty, and
+// also assert no leading "v" — the header template
+// (`fmt.Sprintf("v%s · ...")`) supplies the "v" itself, so a
+// value of "v0.2.0" would render as "vv0.2.0".
 func TestWizard_AppVersion_IsNonEmpty(t *testing.T) {
 	if AppVersion == "" {
 		t.Errorf("AppVersion is empty; welcome footer would show \"v\"")
+	}
+	if strings.HasPrefix(AppVersion, "v") {
+		t.Errorf("AppVersion = %q has a leading 'v'; the header template adds the 'v' itself", AppVersion)
 	}
 }
 
