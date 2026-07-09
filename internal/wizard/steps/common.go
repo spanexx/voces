@@ -51,6 +51,14 @@ type StateReader interface {
 	// rc1-hotpatch-24 — the model step preselects the radio
 	// whose file name equals this value.
 	ModelFile() string
+	// TTSVoiceID returns the piper voice the user has chosen.
+	// Empty when the user has not reached the TTS step yet, or
+	// when they picked the "no TTS" path. May be a manifest
+	// key (e.g. "en_US-lessac-medium") or a custom-URL
+	// sentinel (see steps.customURLSentinel).
+	// rc1-hotpatch-29 — the TTS step preselects the dropdown
+	// row whose ID matches this value.
+	TTSVoiceID() string
 }
 
 // CID:wizard-step-004 - StateSetter
@@ -69,6 +77,10 @@ type StateSetter interface {
 	// input is a no-op so a skipped model step does not erase
 	// the State. rc1-hotpatch-24.
 	SetModel(filename string)
+	// SetTTSVoice commits the chosen piper voice ID. Empty
+	// input is a no-op so a skipped TTS step does not erase
+	// the State. rc1-hotpatch-29.
+	SetTTSVoice(id string)
 }
 
 // CID:wizard-step-001 - Step

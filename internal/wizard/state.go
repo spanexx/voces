@@ -118,6 +118,12 @@ func (s *State) ToggleTranscriptionKeyCode() string {
 // "File" suffix to avoid colliding with the Model field.
 func (s *State) ModelFile() string { return s.Model }
 
+// TTSVoiceID returns the piper voice the user has chosen (rc1-hotpatch-29).
+// Empty when the user has not reached the TTS step yet. May be a
+// manifest key (e.g. "en_US-lessac-medium") or a custom-URL sentinel
+// (see steps.customURLSentinel).
+func (s *State) TTSVoiceID() string { return s.TTSVoice }
+
 // CID:wizard-state-004 - Setters
 // Purpose: methods that implement steps.StateSetter. Steps call
 // these from their Capture closure to commit the user's choice.
@@ -162,5 +168,14 @@ func (s *State) SetSecondaryHotkeys(stop, read, toggleTTS, toggleTranscription s
 func (s *State) SetModel(filename string) {
 	if filename != "" {
 		s.Model = filename
+	}
+}
+
+// SetTTSVoice stores the chosen piper voice ID. Empty input is a
+// no-op so a step the user hasn't reached can't erase the State.
+// rc1-hotpatch-29.
+func (s *State) SetTTSVoice(id string) {
+	if id != "" {
+		s.TTSVoice = id
 	}
 }

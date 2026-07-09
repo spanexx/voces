@@ -38,6 +38,13 @@ const (
 	// base); the user can override before continuing.
 	stepModel
 	stepHotkey
+	// stepPiperStatus (rc1-hotpatch-29) checks whether the
+	// piper binary is installed and shows platform-specific
+	// install instructions if not. Sits BEFORE stepTTS so
+	// the user sees the binary gap before they pick a voice
+	// to download. The step doesn't commit any state — it
+	// just detects and reports. Capture closure is nil.
+	stepPiperStatus
 	stepTTS
 	// stepBehavior (rc1-hotpatch-14) asks whether Voces should
 	// autostart on login. Wired into config.Behavior.Autostart.

@@ -349,17 +349,24 @@ func TestStepHotkey_PresetsHaveLabels(t *testing.T) {
 }
 
 // CID:wizard-test-011 - TestStepTTS_ShouldShow
-// Purpose: the TTS step is skipped for English (IMPL-public-setup
-// §3 "Only consulted when Language != en").
+// Purpose: rc1-hotpatch-29. The TTS step is shown for every
+// language so the user can either pick a curated voice, change
+// the default English voice, or paste a custom voice URL. The
+// rc1-hotpatch-19 "skip for English" rule is preserved
+// downstream by StateFromWizard defaulting PiperVoice to
+// en_US-lessac-medium when the user has not picked
+// (see wizardcli/translate.go), so English users get the same
+// "read_clipboard can speak" UX without having to click through
+// the dropdown.
 func TestStepTTS_ShouldShow(t *testing.T) {
 	cases := []struct {
 		lang string
 		want bool
 	}{
-		{"en", false},
-		{"de", true},
-		{"fr", true},
-		{"", true}, // empty treated as non-English so the prompt always shows
+		{"en", true},  // rc1-hotpatch-29: English users now see the TTS step too
+		{"de", true},  // non-English: always shown (rc1-hotpatch-19)
+		{"fr", true},  // non-English: always shown (rc1-hotpatch-19)
+		{"", true},    // empty language: always shown (defensive default)
 	}
 	for _, c := range cases {
 		got := steps.ShouldShow(c.lang)

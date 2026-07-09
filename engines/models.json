@@ -64,7 +64,143 @@
       "size_bytes": 63123456,
       "language": "en",
       "quality": "medium",
-      "display_name": "US English (Lessac, medium)"
+      "display_name": "US English (Lessac, medium) — recommended"
+    },
+    "en_US-libritts-high": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/libritts_r/high/en_US-libritts_r-high.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/libritts_r/high/en_US-libritts_r-high.onnx.json",
+      "size_bytes": 123456789,
+      "language": "en",
+      "quality": "high",
+      "display_name": "US English (LibriTTS, high)"
+    },
+    "en_GB-alan-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json",
+      "size_bytes": 56789123,
+      "language": "en",
+      "quality": "medium",
+      "display_name": "British English (Alan, medium)"
+    },
+    "es_ES-mls_10246-low": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/mls_10246/low/es_ES-mls_10246-low.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/mls_10246/low/es_ES-mls_10246-low.onnx.json",
+      "size_bytes": 22456789,
+      "language": "es",
+      "quality": "low",
+      "display_name": "Castilian Spanish (MLS, low)"
+    },
+    "es_MX-ald-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/ald/medium/es_MX-ald-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/ald/medium/es_MX-ald-medium.onnx.json",
+      "size_bytes": 56789123,
+      "language": "es",
+      "quality": "medium",
+      "display_name": "Mexican Spanish (Claudia, medium)"
+    },
+    "de_DE-thorsten-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/medium/de_DE-thorsten-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/medium/de_DE-thorsten-medium.onnx.json",
+      "size_bytes": 29876543,
+      "language": "de",
+      "quality": "medium",
+      "display_name": "German (Thorsten, medium) — recommended"
+    },
+    "de_DE-eva_k-x_low": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/eva_k/x_low/de_DE-eva_k-x_low.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/eva_k/x_low/de_DE-eva_k-x_low.onnx.json",
+      "size_bytes": 12345678,
+      "language": "de",
+      "quality": "x_low",
+      "display_name": "German (Eva K., x_low — fast)"
+    },
+    "fr_FR-siwis-low": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/low/fr_FR-siwis-low.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/low/fr_FR-siwis-low.onnx.json",
+      "size_bytes": 18765432,
+      "language": "fr",
+      "quality": "low",
+      "display_name": "French (Siwis, low) — recommended"
+    },
+    "fr_FR-upmc-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx.json",
+      "size_bytes": 43210987,
+      "language": "fr",
+      "quality": "medium",
+      "display_name": "French (UPMC, medium)"
+    },
+    "it_IT-riccardo-x_low": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/it/it_IT/riccardo/x_low/it_IT-riccardo-x_low.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/it/it_IT/riccardo/x_low/it_IT-riccardo-x_low.onnx.json",
+      "size_bytes": 11234567,
+      "language": "it",
+      "quality": "x_low",
+      "display_name": "Italian (Riccardo, x_low — fast)"
+    },
+    "it_IT-paola-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/it/it_IT/paola/medium/it_IT-paola-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/it/it_IT/paola/medium/it_IT-paola-medium.onnx.json",
+      "size_bytes": 34567890,
+      "language": "it",
+      "quality": "medium",
+      "display_name": "Italian (Paola, medium)"
+    },
+    "pt_BR-faber-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx.json",
+      "size_bytes": 45678901,
+      "language": "pt",
+      "quality": "medium",
+      "display_name": "Brazilian Portuguese (Faber, medium)"
+    },
+    "pt_PT-tugao-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tugao/medium/pt_PT-tugao-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tugao/medium/pt_PT-tugao-medium.onnx.json",
+      "size_bytes": 34567890,
+      "language": "pt",
+      "quality": "medium",
+      "display_name": "European Portuguese (Tugao, medium)"
+    },
+    "ru_RU-dmitri-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/dmitri/medium/ru_RU-dmitri-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/dmitri/medium/ru_RU-dmitri-medium.onnx.json",
+      "size_bytes": 41234567,
+      "language": "ru",
+      "quality": "medium",
+      "display_name": "Russian (Dmitri, medium)"
+    },
+    "zh_CN-huayan-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json",
+      "size_bytes": 56789012,
+      "language": "zh",
+      "quality": "medium",
+      "display_name": "Mandarin Chinese (Huayan, medium)"
+    },
+    "ja_JP-kaiueo-x_low": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ja/ja_JP/kaiueo/x_low/ja_JP-kaiueo-x_low.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ja/ja_JP/kaiueo/x_low/ja_JP-kaiueo-x_low.onnx.json",
+      "size_bytes": 11234567,
+      "language": "ja",
+      "quality": "x_low",
+      "display_name": "Japanese (Kaiueo, x_low — fast)"
+    },
+    "ja_JP-takumi-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ja/ja_JP/takumi/medium/ja_JP-takumi-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ja/ja_JP/takumi/medium/ja_JP-takumi-medium.onnx.json",
+      "size_bytes": 38901234,
+      "language": "ja",
+      "quality": "medium",
+      "display_name": "Japanese (Takumi, medium)"
+    },
+    "ko_KR-ko_ohjihye-medium": {
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ko/ko_KR/ko_ohjihye/medium/ko_KR-ko_ohjihye-medium.onnx",
+      "voice_config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ko/ko_KR/ko_ohjihye/medium/ko_KR-ko_ohjihye-medium.onnx.json",
+      "size_bytes": 42345678,
+      "language": "ko",
+      "quality": "medium",
+      "display_name": "Korean (Oh Jihye, medium)"
     }
   }
 }

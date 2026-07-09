@@ -11,8 +11,14 @@
  *   - The new step is present in the right position for both
  *     English and non-English chains.
  *   - "Back" from the next step lands on the new step.
- *   - The English chain still omits TTS (rc1-hotpatch-14).
- *   - The non-English chain still includes TTS at its position.
+ *
+ * rc1-hotpatch-29: the chain gains a PiperStatus step (between
+ * Hotkey and TTS) for every language, and the TTS step is
+ * always shown (the rc1-hotpatch-19 "skip for English" rule
+ * is preserved downstream by StateFromWizard defaulting
+ * PiperVoice to en_US-lessac-medium when the user has not
+ * picked — see wizardcli/translate.go). The English and
+ * non-English chains are now identical in shape.
  *
  * CID Index:
  * CID:wizard-nav-test-001 -> TestBuildStepChain_English
@@ -29,7 +35,7 @@ func TestBuildStepChain_English(t *testing.T) {
 	s.Language = "en"
 	got := buildStepChain(s)
 	want := []stepKey{
-		stepWelcome, stepLanguage, stepModel, stepHotkey, stepBehavior, stepSecondaryHotkeys, stepFinish,
+		stepWelcome, stepLanguage, stepModel, stepHotkey, stepPiperStatus, stepTTS, stepBehavior, stepSecondaryHotkeys, stepFinish,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("English chain length = %d, want %d\n  got:  %v\n  want: %v", len(got), len(want), got, want)
@@ -37,11 +43,6 @@ func TestBuildStepChain_English(t *testing.T) {
 	for i, w := range want {
 		if got[i] != w {
 			t.Errorf("English chain[%d] = %v, want %v\n  got:  %v\n  want: %v", i, got[i], w, got, want)
-		}
-	}
-	for _, k := range got {
-		if k == stepTTS {
-			t.Errorf("English chain unexpectedly includes TTS step: %v", got)
 		}
 	}
 }
@@ -52,7 +53,7 @@ func TestBuildStepChain_NonEnglish(t *testing.T) {
 	s.Language = "de"
 	got := buildStepChain(s)
 	want := []stepKey{
-		stepWelcome, stepLanguage, stepModel, stepHotkey, stepTTS, stepBehavior, stepSecondaryHotkeys, stepFinish,
+		stepWelcome, stepLanguage, stepModel, stepHotkey, stepPiperStatus, stepTTS, stepBehavior, stepSecondaryHotkeys, stepFinish,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("non-English chain length = %d, want %d\n  got:  %v\n  want: %v", len(got), len(want), got, want)

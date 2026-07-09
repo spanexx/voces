@@ -1,102 +1,83 @@
-/* Code Map: TTS Step
- * - ShouldShow: the TTS step is skipped for English per the IMPL
- *   ("Only consulted when Language != en").
- * - Build: assemble the TTS yes/no radios and return a *Step with
- *   a Capture that commits the boolean to the wizard State.
+/* Code Map: TTS Step (rc1-hotpatch-29)
+ *
+ * The TTS step replaces the previous yes/no radio step with a
+ * dropdown of curated voices filtered by the chosen language,
+ * plus a "Custom URL..." entry that reveals two text inputs
+ * for the .onnx and .onnx.json URLs. The hint label links to
+ * the piper-voices manifest (VOICES.md) and explains how to
+ * copy a voice link.
+ *
+ * Split into multiple files (this one + tts_helpers.go +
+ * tts_sentinel.go + tts_build.go) so each file stays under the
+ * 250-line size cap enforced by scripts/check-file-size.sh.
+ * The split is by concern:
+ *
+ *   tts.go            — entry point: ShouldShow + voiceView +
+ *                       ttsVoiceFromStateReader (this file)
+ *   tts_helpers.go    — filterVoicesForLanguage / sortedKeys /
+ *                       defaultVoiceForLanguage (pure functions
+ *                       over the voice manifest)
+ *   tts_sentinel.go   — customURLSentinel / parseCustomURLSentinel
+ *                       / isCustomURLVoice (the sentinel codec
+ *                       that lets one TTSVoice field hold either
+ *                       a manifest key or a custom URL pair)
+ *   tts_build.go      — BuildTTS (the GTK step factory)
+ *
+ * ShouldShow is now always true. The TTS step is shown for
+ * every language (rc1-hotpatch-29 supersedes the rc1-hotpatch-19
+ * "skip for English" rule) so the user can pick a non-default
+ * voice or paste a custom URL. The setup.State.PiperVoice
+ * defaults to en_US-lessac-medium for English when the user
+ * keeps the default, preserving the rc1-hotpatch-19
+ * "read_clipboard can speak" behavior (see wizardcli/translate.go).
  *
  * CID Index:
  * CID:wizard-ttsstep-001 -> ShouldShow
- * CID:wizard-ttsstep-002 -> Build
+ * CID:wizard-ttsstep-002 -> BuildTTS          (tts_build.go)
+ * CID:wizard-ttsstep-003 -> voiceView
+ * CID:wizard-ttsstep-004 -> filterVoicesForLanguage  (tts_helpers.go)
+ * CID:wizard-ttsstep-005 -> defaultVoiceForLanguage  (tts_helpers.go)
+ * CID:wizard-ttsstep-006 -> customURLSentinel        (tts_sentinel.go)
+ * CID:wizard-ttsstep-007 -> parseCustomURLSentinel   (tts_sentinel.go)
+ * CID:wizard-ttsstep-008 -> isCustomURLVoice         (tts_sentinel.go)
+ * CID:wizard-ttsstep-009 -> ttsVoiceFromStateReader
  *
  * Quick lookup: rg -n "CID:wizard-ttsstep-" internal/wizard/steps/
  */
 package steps
 
-import (
-	"fmt"
-
-	"github.com/gotk3/gotk3/gtk"
-)
-
 // CID:wizard-ttsstep-001 - ShouldShow
-// Purpose: returns true when the TTS step should be inserted into
-// the chain. The IMPL-public-setup §3 says the TTS step is only
-// consulted for non-English languages; English users get the
-// bundled "lessac" piper voice automatically. An empty language
-// code is treated as "not yet set" and the prompt is shown — the
-// language step is the only place a code is written, so empty in
-// practice means the language step has not been visited.
-func ShouldShow(languageCode string) bool {
-	return languageCode != "en"
+// Purpose: rc1-hotpatch-29. The TTS step is shown for every
+// language so the user can either pick a curated voice, change
+// the default English voice, or paste a custom voice URL. The
+// previous rc1-hotpatch-19 rule (English -> skip) is preserved
+// downstream by StateFromWizard defaulting PiperVoice to
+// en_US-lessac-medium when the user has not picked
+// (see wizardcli/translate.go).
+func ShouldShow(_ string) bool { return true }
+
+// CID:wizard-ttsstep-003 - voiceView
+// Purpose: flattened view of a single piper manifest entry. The
+// dropdown only needs the ID and the display name; passing the
+// full PiperVoiceMeta would couple the step to the manifest type
+// and pull URL/size through transitively.
+type voiceView struct {
+	ID          string
+	DisplayName string
+	Language    string
 }
 
-// CID:wizard-ttsstep-002 - BuildTTS
-// Purpose: build the TTS step. Two radio buttons: "Yes, install a
-// voice" and "No, skip TTS". Default is "No" so users who do not
-// need TTS never see a download. The "Yes" radio marks
-// TTSEnabled=true on the State; the Phase 5 download step reads
-// that flag to decide whether to fetch a piper voice.
-//
-// The step is hidden when stateReader.LanguageCode() == "en"; the
-// wizard runner is responsible for skipping the call to BuildTTS
-// in that case (see ShouldShow).
-//
-// Back is set so the user can return to the hotkey step.
-func BuildTTS(win *gtk.Window, stateReader StateReader) (*Step, error) {
-	yesBtn, err := gtk.RadioButtonNewWithLabel(nil, "Yes, install a voice")
-	if err != nil {
-		return nil, fmt.Errorf("tts: yes radio: %w", err)
+// CID:wizard-ttsstep-009 - ttsVoiceFromStateReader
+// Purpose: pulls the prior TTSVoice pick out of the StateReader
+// via a type assertion to avoid forcing every StateReader
+// implementation to add a TTSVoice method (only the wizard's
+// *State provides one today). The assertion fails in tests that
+// pass a minimal reader; the empty-string fallback keeps the
+// picker working with the default first-row preselect.
+func ttsVoiceFromStateReader(s StateReader) string {
+	type ttvSource interface{ TTSVoiceID() string }
+	if src, ok := s.(ttvSource); ok {
+		return src.TTSVoiceID()
 	}
-	noBtn, err := gtk.RadioButtonNewWithLabelFromWidget(yesBtn, "No, skip TTS")
-	if err != nil {
-		return nil, fmt.Errorf("tts: no radio: %w", err)
-	}
-	// Default: No.
-	noBtn.SetActive(true)
-	if stateReader != nil && stateReader.TTS() {
-		yesBtn.SetActive(true)
-	}
-
-	hint, err := gtk.LabelNew(
-		"Text-to-speech reads the transcribed text back to you. " +
-			"Only non-English languages prompt here; English uses the bundled voice. " +
-			"You can change this later by re-running the setup.",
-	)
-	if err != nil {
-		return nil, fmt.Errorf("tts: hint label: %w", err)
-	}
-	hint.SetLineWrap(true)
-	hint.SetHAlign(gtk.ALIGN_START)
-
-	radioBox, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 4)
-	if err != nil {
-		return nil, fmt.Errorf("tts: radio box: %w", err)
-	}
-	radioBox.PackStart(yesBtn, false, false, 0)
-	radioBox.PackStart(noBtn, false, false, 0)
-
-	content, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 8)
-	if err != nil {
-		return nil, fmt.Errorf("tts: content box: %w", err)
-	}
-	content.PackStart(hint, false, false, 0)
-	content.PackStart(radioBox, false, false, 0)
-
-	box, back, next, err := newStepContent("Enable text-to-speech?", content, "Back", "Next")
-	if err != nil {
-		return nil, fmt.Errorf("tts: build content: %w", err)
-	}
-
-	capture := func(setter StateSetter) error {
-		setter.SetTTS(yesBtn.GetActive())
-		return nil
-	}
-
-	// Note: do not win.Add(box) here. The runner is the single source
-	// of truth for attaching the step box to the window (wizard.go
-	// showStepAt). Double-adding raises:
-	//   "Attempting to add a widget with type GtkBox to a container of
-	//    type GtkWindow, but the widget is already inside a container
-	//    of type GtkWindow"
-	return &Step{Box: box, Next: next, Back: back, Capture: capture}, nil
+	return ""
 }

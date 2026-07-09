@@ -11,6 +11,7 @@
  * CID:paths-003 -> WhisperModelPath
  * CID:paths-004 -> PiperVoicePath
  * CID:paths-005 -> EnginesDir
+ * CID:paths-006 -> PiperModelDir
  *
  * Quick lookup: rg -n "CID:paths-" internal/paths/paths.go
  */
@@ -86,6 +87,25 @@ func PiperVoicePath(base string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(models, "piper", base+".onnx"), nil
+}
+
+// CID:paths-006 - PiperModelDir
+// Purpose: Returns the directory that holds piper voice files, creating
+// it if missing. Used by setup.EnsureModels for custom URL voices
+// (rc1-hotpatch-29) where the on-disk filename is derived from the
+// user-pasted URL — the downloader needs the dir, not a
+// manifest-key-derived path.
+// Example: PiperModelDir() -> ~/.local/share/voces/models/piper
+func PiperModelDir() (string, error) {
+	models, err := ModelsDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(models, "piper")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create piper model dir %q: %w", dir, err)
+	}
+	return dir, nil
 }
 
 // CID:paths-005 - EnginesDir

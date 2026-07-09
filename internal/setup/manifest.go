@@ -89,6 +89,11 @@ func LoadManifest(path string) (*Manifest, error) {
 // release time against whisper.cpp's HuggingFace repo. See
 // docs/wizard-model-picker/PRD-wizard-model-picker.md (AC-7) for the
 // acceptance criterion this matrix satisfies.
+//
+// The Piper voice list is curated separately in
+// manifest_piper_voices.go (rc1-hotpatch-29) so this file
+// stays under the 250-line file-size gate enforced by
+// scripts/check-file-size.sh.
 func DefaultManifest() *Manifest {
 	const baseURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
 	return &Manifest{
@@ -152,15 +157,6 @@ func DefaultManifest() *Manifest {
 				DisplayName: "Medium (multilingual, ~1.5 GB)",
 			},
 		},
-		Piper: map[string]PiperVoiceMeta{
-			"en_US-lessac-medium": {
-				URL:            "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx",
-				VoiceConfigURL: "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json",
-				SizeBytes:      63123456, // ~60 MB; pinned at IMPL time
-				Language:       "en",
-				Quality:        "medium",
-				DisplayName:    "US English (Lessac, medium)",
-			},
-		},
+		Piper: defaultPiperVoices(),
 	}
 }

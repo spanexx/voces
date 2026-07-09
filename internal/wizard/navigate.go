@@ -52,6 +52,9 @@ func buildStepRegistry() map[stepKey]stepRenderer {
 		stepHotkey: func(win *gtk.Window, s *State) (*steps.Step, error) {
 			return steps.BuildHotkey(win, s)
 		},
+		stepPiperStatus: func(win *gtk.Window, s *State) (*steps.Step, error) {
+			return steps.BuildPiperStatus(win, s)
+		},
 		stepTTS: func(win *gtk.Window, s *State) (*steps.Step, error) {
 			return steps.BuildTTS(win, s)
 		},
@@ -83,8 +86,15 @@ func buildStepRegistry() map[stepKey]stepRenderer {
 // scope (en → .en variants, anything else → multilingual), and
 // the user's pick is preselected on every re-render (so a
 // Back into the model step keeps the prior choice).
+// rc1-hotpatch-29: the PiperStatus step is inserted right after
+// Hotkey and before TTS. The TTS step is now always shown
+// (the rc1-hotpatch-19 "skip for English" rule is preserved
+// downstream by StateFromWizard defaulting PiperVoice to
+// en_US-lessac-medium when the user has not picked — see
+// wizardcli/translate.go). This lets English users pick a
+// non-default voice or paste a custom URL.
 func buildStepChain(state *State) []stepKey {
-	keys := []stepKey{stepWelcome, stepLanguage, stepModel, stepHotkey}
+	keys := []stepKey{stepWelcome, stepLanguage, stepModel, stepHotkey, stepPiperStatus}
 	if steps.ShouldShow(state.LanguageCode()) {
 		keys = append(keys, stepTTS)
 	}
