@@ -104,8 +104,7 @@ func TestParseArgs_InvalidFlag(t *testing.T) {
 // stable). The wizard's header template adds the "v" itself, so
 // we strip it once before seeding AppVersion. The dev default
 // "dev" must pass through unchanged so a `go run` build still
-// renders "vdev · press-and-hold to talk" (the historical
-// dev-build UX).
+// renders "vdev" as the subtitle.
 func TestStripV(t *testing.T) {
 	cases := []struct {
 		in, want string
@@ -120,8 +119,8 @@ func TestStripV(t *testing.T) {
 		// A bare "v" is left alone (no digit follows).
 		{"v", "v"},
 		// Empty string — pass-through (the header would
-		// render "v · press-and-hold" but the AppVersion
-		// non-empty test in wizard_test.go catches it).
+		// render just "v" but the AppVersion non-empty
+		// test in wizard_test.go catches it).
 		{"", ""},
 		// "vv" double-v is not a real format; the
 		// strip-on-digit rule keeps it intact (the

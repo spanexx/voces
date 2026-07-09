@@ -24,7 +24,11 @@
 package wizard
 
 import (
+	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -134,6 +138,78 @@ func TestVocessCSS_ProgressBarStyled(t *testing.T) {
 	if trough == "" {
 		t.Fatal(".voces-progress trough rule not found; the light-grey trough is " +
 			"not reinforced on the trough sub-element")
+	}
+}
+
+// CID:wizard-win-test-001 - TestWizardWindow_SubtitleHasNoTagline
+// Purpose: rc1-hotpatch-27. The wizard header subtitle used to
+// read "v<X> · press-and-hold to talk". That tagline is a
+// false claim — the hotkey step binds F9 to start and space to
+// stop (tap-to-start, tap-to-stop), not push-and-hold. Pin
+// that the literal phrase "press-and-hold" is no longer in
+// the wizard's source. We grep the wizard package files
+// because the subtitle is built via fmt.Sprintf in
+// window.go:subtitle.SetMarkup and the test must fail if a
+// future PR brings the phrase back from a copy-paste.
+func TestWizardWindow_SubtitleHasNoTagline(t *testing.T) {
+	// We don't want to load GTK just to inspect the markup;
+	// the substring scan is enough — a regression would put
+	// the literal "press-and-hold" back in this file or any
+	// file in the wizard package, and the test will catch it.
+	badPhrase := "press-and-hold"
+	// Also catch the unhyphenated form a careless author
+	// might use.
+	badPhraseAlt := "press and hold"
+	for _, file := range wizardSubtitleSourceFiles() {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("read %s: %v", file, err)
+		}
+		s := string(data)
+		if strings.Contains(s, badPhrase) || strings.Contains(s, badPhraseAlt) {
+			t.Errorf("%s still contains the rc1-hotpatch-27 banned phrase "+
+				"(\"%s\" or \"%s\"). The wizard hotkey is tap-to-start/tap-to-stop, "+
+				"not press-and-hold. The subtitle must drop the misleading tagline.",
+				file, badPhrase, badPhraseAlt)
+		}
+	}
+}
+
+// wizardSubtitleSourceFiles returns the absolute paths of the
+// source files that could plausibly contain the wizard
+// subtitle template. Kept as a helper (not a Glob) so a test
+// failure names the offending file.
+//
+// We resolve relative to the test binary's working directory
+// (os.Getwd) because `go test` may run from the package dir
+// (./internal/wizard) or the module root. The test fails fast
+// with a clear "read X: no such file" if the wizard package
+// is moved; that's a feature — a silent zero-coverage of the
+// regression guard is worse than a noisy failure.
+func wizardSubtitleSourceFiles() []string {
+	root := os.Getenv("WIZARD_SRC_ROOT")
+	if root == "" {
+		// Find this test file's directory and walk up one
+		// level to land on the wizard package root.
+		// _test.go files live in the same package, so
+		// filepath.Dir on the test file's path is the
+		// wizard package dir.
+		_, thisFile, _, ok := runtime.Caller(0)
+		if ok {
+			root = filepath.Dir(thisFile)
+		} else {
+			// Fallback: relative to the working dir.
+			wd, _ := os.Getwd()
+			if strings.HasSuffix(wd, "/internal/wizard") {
+				root = wd
+			} else {
+				root = filepath.Join(wd, "internal", "wizard")
+			}
+		}
+	}
+	return []string{
+		filepath.Join(root, "window.go"),
+		filepath.Join(root, "steps", "welcome.go"),
 	}
 }
 

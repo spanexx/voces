@@ -132,10 +132,10 @@ func main() {
 
 	// rc1-hotpatch-26: seed the wizard's AppVersion with the
 	// build's Version (stripped of the leading "v" so the
-	// header template "v%s · press-and-hold to talk" doesn't
-	// render "vv0.2.0-rc11"). Seeded once at startup, before
-	// the wizard is opened from any entry point
-	// (--setup, first-run, tray's "Run setup again...").
+	// header template "v%s" doesn't render "vv0.2.0-rc11").
+	// Seeded once at startup, before the wizard is opened
+	// from any entry point (--setup, first-run, tray's "Run
+	// setup again...").
 	wizard.AppVersion = stripV(Version)
 
 	if configDir, err := os.UserConfigDir(); err == nil {

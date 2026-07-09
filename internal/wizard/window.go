@@ -125,8 +125,19 @@ func NewWindow() (*gtk.Window, *gtk.Box, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("wizard: subtitle label: %w", err)
 	}
+	// rc1-hotpatch-27: dropped the misleading "push to talk"
+	// tagline. The wizard's hotkey step binds f9 to start and
+	// space to stop (tap-to-start, tap-to-stop), not
+	// push-and-hold. The tagline survived from the
+	// rc1-hotpatch-14 design before the toggle hotkeys
+	// landed. The subtitle now shows just the version — the
+	// brief is honest about the build and lets the welcome
+	// body copy do the talking. The test in
+	// window_css_test.go bans the legacy phrase from this
+	// file's source; this comment paraphrases the rationale
+	// to avoid tripping the regression guard.
 	subtitle.SetMarkup(fmt.Sprintf(
-		"<span foreground=\"#a8b8d0\">v%s · press-and-hold to talk</span>",
+		"<span foreground=\"#a8b8d0\">v%s</span>",
 		AppVersion,
 	))
 	subtitle.SetHAlign(gtk.ALIGN_START)

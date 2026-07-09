@@ -1,12 +1,9 @@
 /* Code Map: Event Handlers
- * - buildTrayHandlers: Links tray UI events to app logic
- * - buildHotkeyHandlers: Links global keys to app logic
+ * - buildTrayHandlers: tray UI -> app logic
+ * - buildHotkeyHandlers: global keys -> app logic
  *
- * CID Index:
  * CID:app-handlers-001 -> buildTrayHandlers
  * CID:app-handlers-002 -> buildHotkeyHandlers
- *
- * Quick lookup: rg -n "CID:app-handlers-" internal/app/handlers.go
  */
 package app
 
@@ -62,14 +59,23 @@ func (a *Application) buildTrayHandlers() tray.ActionHandlers {
 					return
 				}
 				if text != "" {
-					err := a.TTS.Speak(text)
-					if err != nil {
-						if errors.Is(err, audio.ErrPlaybackStopped) {
-							a.Tray.SetState(tray.StateIdle, "Idle")
-							return
+					// rc27: friendly "TTS Unavailable" info when
+					// piper binary/model missing (see TTS.Available).
+					if a.TTS == nil || !a.TTS.Available() {
+						a.Notifier.Info(
+							"TTS Unavailable",
+							"Install piper (system package or via the setup wizard) to enable read-clipboard speech.",
+						)
+					} else {
+						err := a.TTS.Speak(text)
+						if err != nil {
+							if errors.Is(err, audio.ErrPlaybackStopped) {
+								a.Tray.SetState(tray.StateIdle, "Idle")
+								return
+							}
+							log.Printf("Tray TTS error: %v", err)
+							a.Notifier.Error("TTS Failed", err.Error())
 						}
-						log.Printf("Tray TTS error: %v", err)
-						a.Notifier.Error("TTS Failed", err.Error())
 					}
 				}
 				a.Tray.SetState(tray.StateIdle, "Idle")
@@ -195,6 +201,22 @@ func (a *Application) buildHotkeyHandlers() hotkey.ActionHandlers {
 
 				if text == "" {
 					a.Notifier.Info("TTS Skipping", "Clipboard is empty")
+					a.Tray.SetState(tray.StateIdle, "Idle")
+					return
+				}
+
+				// rc27: friendly "TTS Unavailable" info when
+				// piper binary/model missing (see TTS.Available).
+				// The release tarball doesn't bundle piper, so a
+				// user who opted out of TTS in the wizard would
+				// otherwise see the raw "piper binary not found"
+				// error from Piper.Speak (install-deps.sh installs
+				// the apt-piper fallback on the host).
+				if a.TTS == nil || !a.TTS.Available() {
+					a.Notifier.Info(
+						"TTS Unavailable",
+						"Install piper (system package or via the setup wizard) to enable read-clipboard speech.",
+					)
 					a.Tray.SetState(tray.StateIdle, "Idle")
 					return
 				}
