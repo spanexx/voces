@@ -22,16 +22,18 @@
 package setup
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
+	"strings"
+	"time"
 )
 
 // CID:setup-piper-001 - FindPiperBinary
 // Purpose: locate the piper binary on the system, returning the
-// absolute path to the first match, or empty string if piper is
-// not installed. Search order:
+// absolute path of the first match that is the rhasspy/piper
+// TTS engine, or empty string if none is found. Search order:
 //
 //   1. $PATH via os/exec.LookPath (covers the "user installed
 //      piper via their distro's package manager and it's on
@@ -41,21 +43,23 @@ import (
 //
 // Returning the absolute path (not just "found" or "not found")
 // lets the wizard print it in the success state so the user can
-// see where Voces expects piper to be. The check is os.Stat +
-// executable bit; we don't run the binary here — that's the
-// tts.Available() call's job. The candidate list is a
-// package-level variable (not a constant) so tests can swap it
-// for a temp-dir path (see piper_test.go).
+// see where Voces expects piper to be. Each candidate is also
+// validated by isPiperTTS so we don't pick up the libratbag
+// "piper" Debian package (rc1-hotpatch-31), which is a Python
+// GTK app for configuring gaming mice that happens to share
+// the binary name. The candidate list is a package-level
+// variable (not a constant) so tests can swap it for a
+// temp-dir path (see piper_test.go).
 //
 // Real-file check, not a mock (per the no-mocks gate).
 func FindPiperBinary() string {
 	if p, err := exec.LookPath("piper"); err == nil {
-		if isExecutable(p) {
+		if isExecutable(p) && isPiperTTS(p) {
 			return p
 		}
 	}
 	for _, c := range piperCandidatePaths {
-		if isExecutable(c) {
+		if isExecutable(c) && isPiperTTS(c) {
 			return c
 		}
 	}
@@ -115,68 +119,75 @@ func isExecutable(path string) bool {
 	return mode&0111 != 0
 }
 
-// PiperInstallHint is the human-readable text the wizard shows
-// when FindPiperBinary returns empty. Kept short and concrete
-// — three commands the user can paste in a terminal, plus the
-// GitHub releases link for the source build.
-const PiperInstallHint = `Piper is a fast, local neural text-to-speech engine. Voces uses it to read transcriptions aloud (for example, when you press Ctrl+U to read the clipboard).
-
-Piper is not installed on this system. Pick one of these options to enable text-to-speech:
-
-  • Debian / Ubuntu / Linux Mint:
-      sudo apt-get install piper
-      (or: sudo apt-get install piper-tts on newer releases)
-
-  • Fedora / RHEL:
-      sudo dnf install piper
-
-  • Arch / Manjaro:
-      sudo pacman -S piper
-
-  • Build from source:
-      https://github.com/rhasspy/piper/releases
-
-After installing piper, go Back to this step and click Next again to re-check. If you want to skip text-to-speech for now, click "Next" — the rest of the wizard still works; you'll just see a "TTS Unavailable" notification if you press Ctrl+U.`
-
-// PiperInstallHintLinux, PiperInstallHintDarwin, PiperInstallHintWindows
-// are platform-specific variants of PiperInstallHint. The
-// wizard picks one based on runtime.GOOS. We keep the strings
-// as separate constants (not computed) because go vet / gofmt
-// keep raw string literals readable in source. The
-// build-from-source link is the same across platforms because
-// piper ships a prebuilt tarball for all three.
-const (
-	PiperInstallHintLinux = PiperInstallHint
-	PiperInstallHintDarwin = `Piper is a fast, local neural text-to-speech engine.
-
-Piper is not installed on this system. The simplest install is via Homebrew:
-
-  brew install piper
-
-Or build from source:
-  https://github.com/rhasspy/piper/releases
-
-After installing, go Back and click Next again to re-check.`
-	PiperInstallHintWindows = `Piper is a fast, local neural text-to-speech engine.
-
-Piper is not installed on this system. Download the latest prebuilt Windows release from:
-
-  https://github.com/rhasspy/piper/releases
-
-Extract piper.exe somewhere on your PATH (or in C:\Program Files\piper) and re-run the wizard.`
-)
-
-// PiperInstallHintForOS returns the platform-appropriate install
-// hint. Centralised here so the wizard step doesn't import
-// runtime (and so a future change to add more platform hints
-// is a one-file diff).
-func PiperInstallHintForOS() string {
-	switch runtime.GOOS {
-	case "darwin":
-		return PiperInstallHintDarwin
-	case "windows":
-		return PiperInstallHintWindows
-	default:
-		return PiperInstallHintLinux
+// CID:setup-piper-004 - isPiperTTS (rc1-hotpatch-31)
+// Purpose: distinguish the rhasspy/piper TTS engine from other
+// "piper" binaries that happen to share the binary name. The
+// Debian package "piper" (libratbag/piper) is a Python GTK
+// app for configuring gaming mice; it has no `-m`/`--model`
+// flag and printing "Unknown option -m" on first Speak() call
+// is the symptom that prompted rc31.
+//
+// Detection strategy: run the candidate binary with `--version`
+// and check the response. The rhasspy/piper binary prints
+// something like "piper v1.2.0" to stdout and exits 0. The
+// libratbag piper binary prints "Unknown option --version" to
+// stderr and exits 0. A binary that doesn't even recognise
+// `--version` is not the rhasspy/piper we want.
+//
+// Edge cases handled:
+//   - binary that crashes on --version: returns false (treated
+//     as "not piper"). The fallback in piper_status.go shows
+//     the install hint, and the user can install the real one.
+//   - binary that hangs on --version: the 2s context timeout
+//     kills it and we return false (better a false negative
+//     that the user can fix than a wizard that hangs).
+//   - binary that exits non-zero: returns false. The rhasspy
+//     binary always exits 0 on --version.
+//
+// Real subprocess invocation, no mocks. The piper binary is
+// the system-under-test, so the test that exercises this
+// path is piper_test.go (drops a fake libratbag script in
+// t.TempDir() and verifies isPiperTTS returns false).
+func isPiperTTS(path string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, path, "--version")
+	// Cancel (Go 1.20+) sends SIGKILL to the child process
+	// when the context is cancelled. Without it, the parent
+	// shell exits on context timeout but `sleep` / the
+	// hung binary keeps running — `cmd.CombinedOutput()`
+	// then blocks until the child finishes, which is the
+	// exact bug TestIsPiperTTS_RejectsHang guards against.
+	cmd.Cancel = func() error {
+		return cmd.Process.Kill()
 	}
+	cmd.WaitDelay = 500 * time.Millisecond
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return false
+	}
+	if err != nil {
+		return false
+	}
+	text := strings.ToLower(string(out))
+	// libratbag piper signals "wrong binary" with the GTK help
+	// text (gapplication / --help-gtk) and "Unknown option
+	// --version". Reject either shape.
+	if strings.Contains(text, "gapplication") ||
+		strings.Contains(text, "help-gtk") ||
+		strings.Contains(text, "help-gapplication") ||
+		strings.Contains(text, "unknown option") {
+		return false
+	}
+	// rhasspy/piper prints "piper vX.Y.Z" or similar on
+	// --version. Accept the candidate when the output mentions
+	// "piper" and doesn't have any of the rejection signals.
+	// We keep this lenient (just "piper" in the text) because
+	// the upstream version string format has changed over the
+	// years — strict matching would be brittle.
+	return strings.Contains(text, "piper")
 }
+
+// PiperInstallHint and the platform-specific variants live
+// in piper_install_hint.go (extracted for the 250-line cap).
+// PiperInstallHintForOS is also there.

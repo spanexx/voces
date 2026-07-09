@@ -195,13 +195,20 @@ func TestApply_PreservesExistingBinaryPaths(t *testing.T) {
 
 	// Real, executable binaries in t.TempDir() so the rc30
 	// preserveBinaryPath validation passes (os.Stat + exec bit).
+	// The rc31 isPiperTTS check needs them to also answer
+	// --version with a string containing "piper" (rhasspy/piper
+	// prints "piper vX.Y.Z"); without that, ResolvePiperBinaryPath
+	// would fall through to the bundled <engines>/piper and the
+	// test wouldn't be exercising the rc30 "preserve user
+	// binary path" rule.
+	fakePiper := "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo \"piper v1.2.0-test\"; exit 0; fi\nexit 0\n"
 	binDir := t.TempDir()
 	whisperBin := filepath.Join(binDir, "whisper-cli")
 	piperBin := filepath.Join(binDir, "piper")
 	if err := os.WriteFile(whisperBin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(piperBin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := os.WriteFile(piperBin, []byte(fakePiper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 

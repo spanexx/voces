@@ -55,9 +55,25 @@ import (
 // makeExecutable drops a tiny shell-script with the +x bit set
 // at path. Real file system, no fakes (per the precommit gate
 // that bans fake paths in tests).
+//
+// rc1-hotpatch-31: the script also answers `--version` with a
+// string that contains "piper" so it passes the isPiperTTS
+// check in FindPiperBinary. Without this, the rc30 "Prefers
+// System" test would now fail because the fake piper that
+// just prints "exit 0" gets rejected as "not the rhasspy/piper
+// TTS binary".
 func makeExecutable(t *testing.T, path string) {
 	t.Helper()
-	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	script := "#!/bin/sh\n" +
+		"# Mimic the rhasspy/piper TTS binary just enough to pass\n" +
+		"# setup.isPiperTTS (rc1-hotpatch-31): respond to --version\n" +
+		"# with a string that contains 'piper' and exits 0.\n" +
+		"if [ \"$1\" = \"--version\" ]; then\n" +
+		"  echo \"piper v1.2.0-test\"\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"exit 0\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatalf("write fake executable %s: %v", path, err)
 	}
 }
