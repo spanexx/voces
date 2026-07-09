@@ -6,6 +6,28 @@
 #   # or pin a specific version:
 #   VOCES_VERSION=v0.2.0-rc9 curl -fsSL ... | bash
 #
+# Channel auto-detection (rc1-hotpatch-28):
+#   The installer picks a release by walking the GitHub tags and
+#   deciding which channel the user is on:
+#     1. If VOCES_VERSION is set, that wins (escape hatch).
+#     2. Else if /opt/voces/voces exists, parse its version
+#        (`voces --version`) and stay on the same channel:
+#        - installed is a prerelease (v0.2.0-rc12) → pick the
+#          highest prerelease of the same base (v0.2.0-rc13).
+#          If no prerelease of that base exists, stay on
+#          what's installed (no auto-promotion to stable).
+#        - installed is stable (v0.2.0) → pick the highest
+#          stable of any base (v0.2.1). Stable never
+#          downgrades to a prerelease of its own base.
+#     3. Else (fresh install) → pick the highest stable
+#        (or, if no stable exists, the highest prerelease
+#        of the highest base).
+#
+#   Result: a user who installed rc12 doesn't have to remember
+#   `VOCES_VERSION=v0.2.0-rc13` for the next update — a plain
+#   `curl ... | bash` does the right thing. The escape hatch
+#   (VOCES_VERSION) is still available for one-off pinning.
+#
 # What it does:
 #   1. Finds the latest published release from GitHub (including
 #      prereleases — see the rc1-hotpatch-22 fix below).
@@ -37,6 +59,106 @@ if [ "$(id -u)" -ne 0 ]; then
     fi
 fi
 
+# pick_latest_tag <installed_version> <tags>
+#
+# Pure function: given the currently installed version (or empty
+# string for a fresh install) and the newline-separated list of
+# available tags, prints the tag the installer should fetch.
+# Returns 0 on success, 1 on no candidate.
+#
+# Channel rules (rc1-hotpatch-28):
+#   - installed is a prerelease (e.g. v0.2.0-rc12):
+#       * Pick the highest prerelease of the same base
+#         (v0.2.0-rc13 if it exists).
+#       * If no prerelease of that base exists, stay on
+#         what's installed (no auto-promote to stable —
+#         the user opted into the prerelease channel and
+#         should opt out explicitly via VOCES_VERSION).
+#   - installed is stable (e.g. v0.2.0):
+#       * Pick the highest stable of any base
+#         (v0.2.1 wins over v0.2.0).
+#       * Never downgrade to a prerelease.
+#   - installed is empty (fresh install):
+#       * Pick the highest stable, falling back to the
+#         highest prerelease of the highest base if no
+#         stable is published.
+#
+# The function is intentionally side-effect-free so that
+# scripts/install-test.sh can source it and exercise every
+# branch without touching the network or the filesystem.
+pick_latest_tag() {
+    local installed="$1"
+    local tags="$2"
+
+    if [ -z "$tags" ]; then
+        return 1
+    fi
+
+    # iv = version without the leading "v"
+    # iv_base = base (before the first "-")
+    # iv = iv_base  => stable
+    # iv != iv_base => prerelease
+    local iv="${installed#v}"
+    local iv_base="${iv%%-*}"
+
+    if [ "$iv" != "$iv_base" ]; then
+        # PRERELEASE channel. Stay on the same base; pick the
+        # highest prerelease within it.
+        if printf '%s\n' "$tags" | grep -qE "^v${iv_base}-"; then
+            printf '%s\n' "$tags" \
+                | grep -E "^v${iv_base}-" \
+                | sort -V \
+                | tail -n 1
+            return 0
+        fi
+        # No prereleases of this base are published. Stay on
+        # what's installed (no auto-promote to stable).
+        if [ -n "$installed" ]; then
+            echo "$installed"
+            return 0
+        fi
+        # Empty installed + no rc of this base can't happen
+        # (empty installed hits the stable branch below) but
+        # fall through for safety.
+    fi
+
+    # STABLE channel (or fresh install). Pick the highest
+    # stable tag of any base.
+    local stable
+    stable="$(printf '%s\n' "$tags" | grep -E '^v[0-9]+(\.[0-9]+){2}$' | sort -V | tail -n 1)"
+    if [ -n "$stable" ]; then
+        echo "$stable"
+        return 0
+    fi
+
+    # No stable tag exists. Fall back to the highest prerelease
+    # of the highest base (sort -V treats the suffix as a
+    # build identifier that sorts after the base).
+    local highest_base
+    highest_base="$(printf '%s\n' "$tags" | sed 's/-.*//' | sort -V | tail -n 1)"
+    if printf '%s\n' "$tags" | grep -q "^${highest_base}-"; then
+        printf '%s\n' "$tags" | grep "^${highest_base}-" | sort -V | tail -n 1
+        return 0
+    fi
+    echo "$highest_base"
+    return 0
+}
+
+# detect_installed_version
+#
+# Prints the version of the currently installed /opt/voces/voces,
+# or empty string if no install is found / the binary can't run.
+# Used as the "installed" argument to pick_latest_tag.
+detect_installed_version() {
+    if [ ! -x "$INSTALL_DIR/voces" ]; then
+        return 0
+    fi
+    # `voces --version` prints "Voces version v<X>" on its own line.
+    # We use $SUDO because /opt/voces is typically root-owned.
+    $SUDO "$INSTALL_DIR/voces" --version 2>/dev/null \
+        | awk '/Voces version/ {print $3; exit}'
+}
+
 # --- 1. Find the latest release tarball URL ---------------------------------
 echo "Voces installer"
 echo "  Repo:   $REPO"
@@ -45,8 +167,8 @@ echo ""
 
 # Honour a pinned version when the caller exports VOCES_VERSION
 # (lets users install a specific tag like v0.2.0-rc8, or pin to
-# rc1 in CI). When unset, pick the highest semver tag from the
-# GitHub API list endpoint — which INCLUDES prereleases.
+# rc1 in CI). When unset, auto-detect the channel from the
+# currently installed version (see pick_latest_tag above).
 #
 # rc1-hotpatch-22: the previous version used /releases/latest,
 # which GitHub defines to exclude prereleases. Every voces
@@ -58,19 +180,6 @@ echo ""
 if [ -n "${VOCES_VERSION:-}" ]; then
     LATEST_TAG="$VOCES_VERSION"
 else
-    # rc1-hotpatch-22: /releases/latest excludes prereleases, so we
-    # list all releases and pick the highest semver tag ourselves.
-    #
-    # The list is a mix of stable tags (e.g. v0.2.0) and prerelease
-    # tags (e.g. v0.2.0-rc9). Per semver, a release is HIGHER than
-    # any prerelease of the same major.minor.patch, but `sort -V`
-    # orders them backwards (treats the prerelease suffix as
-    # additional "bigger" components). So the algorithm is:
-    #   1. Strip the prerelease suffix to find the highest base
-    #      version (e.g. v0.2.0). That decides which major.minor
-    #      wins.
-    #   2. Within that base version, prefer the release over any
-    #      prerelease.
     API_URL="https://api.github.com/repos/${REPO}/releases?per_page=100"
     TAGS="$(
         curl -fsSL "$API_URL" \
@@ -78,12 +187,13 @@ else
             | sed 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/' \
             | grep -E '^v[0-9]+'
     )"
-    HIGHEST_BASE="$(printf '%s\n' "$TAGS" | sed 's/-.*//' | sort -V | tail -n 1)"
-    if printf '%s\n' "$TAGS" | grep -qx "$HIGHEST_BASE"; then
-        LATEST_TAG="$HIGHEST_BASE"
+    INSTALLED_VERSION="$(detect_installed_version || true)"
+    if [ -n "$INSTALLED_VERSION" ]; then
+        echo "  Installed: $INSTALLED_VERSION (auto-detected channel)"
     else
-        LATEST_TAG="$(printf '%s\n' "$TAGS" | grep "^${HIGHEST_BASE}-" | sort -V | tail -n 1)"
+        echo "  Installed: (none — fresh install)"
     fi
+    LATEST_TAG="$(pick_latest_tag "$INSTALLED_VERSION" "$TAGS" || true)"
 fi
 
 if [ -z "${LATEST_TAG:-}" ]; then

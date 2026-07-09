@@ -45,7 +45,7 @@ precommit:
 	@./scripts/check-file-size.sh || exit 1
 	@echo ""
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "5/9: Checking for proper comments..."
+	@echo "5/10: Checking for proper comments..."
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@./scripts/check-comments.sh || exit 1
 	@echo ""
@@ -55,17 +55,22 @@ precommit:
 	@./scripts/check-coverage.sh || exit 1
 	@echo ""
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "7/9: Checking for secrets..."
+	@echo "7/10: Checking for secrets..."
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@./scripts/check-secrets.sh || exit 1
 	@echo ""
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "8/9: Checking wizard tests skip cleanly without DISPLAY..."
+	@echo "8/10: Checking wizard tests skip cleanly without DISPLAY..."
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@./scripts/check-no-headless-failures.sh || exit 1
 	@echo ""
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "9/9: Testing install-deps wait_for_apt_lock helper..."
+	@echo "9/9: Testing install.sh channel picker (pick_latest_tag)..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@bash scripts/install-test.sh || exit 1
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "10/10: Testing install-deps wait_for_apt_lock helper..."
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@bash scripts/install-deps-test.sh || exit 1
 	@echo ""
